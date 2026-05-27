@@ -753,6 +753,24 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 }
 .live-refresh-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;}
 .live-refresh-dot.polling{animation:pulse 1s infinite;}
+
+/* ── PLAYER MODAL ──────────────────────────────────────────────── */
+#player-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:modalBgIn 0.2s ease;}
+@keyframes modalBgIn{from{opacity:0}to{opacity:1}}
+#player-modal-content{background:#fff;border-radius:16px;padding:24px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto;animation:modalIn 0.22s cubic-bezier(.34,1.56,.64,1);}
+@keyframes modalIn{from{opacity:0;transform:scale(0.88) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.pm-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;}
+.pm-rating{font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--green);line-height:1;flex-shrink:0;}
+.pm-name{font-weight:700;font-size:18px;line-height:1.2;margin-bottom:4px;}
+.pm-meta{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.pm-section{margin-bottom:14px;}
+.pm-section-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;}
+.pm-owner-row{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f9fafb;border-radius:8px;border:1px solid var(--border);}
+.pm-matchday-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px;}
+.pm-matchday-row:last-child{border-bottom:none;}
+.pm-total-pts{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--green2);text-align:center;margin:4px 0;}
+.pm-watchlist-btn{width:100%;margin-top:8px;}
+.dr-player-row.clickable{cursor:pointer;}
 </style>
 </head>
 <body>
@@ -1013,6 +1031,10 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
       <div id="top-players-list"></div>
     </div>
   </div>
+</div>
+
+<div id="player-modal" onclick="closePlayerModal()">
+  <div id="player-modal-content" onclick="event.stopPropagation()"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1636,8 +1658,7 @@ function renderDraftPool(){
         :'<div class="dr-action-btn dr-drafted-icon" style="opacity:0.3">+</div>';
     const queueBtn=isDrafted?''
       :'<div class="dr-action-btn dr-queue-btn'+(inQueue?' in-queue':'')+'" onclick="event.stopPropagation();toggleQueue('+p.id+')" title="Watchlist">'+(inQueue?'★':'☆')+'</div>';
-    const rowClick=isMyTurn&&posOk&&!isDrafted?'onclick="draftPlayer('+p.id+')"':'';
-    return '<div class="dr-player-row'+(isDrafted?' drafted':'')+(inQueue&&!isDrafted?' queued':'')+'" '+rowClick+'>'+
+    return '<div class="dr-player-row clickable'+(isDrafted?' drafted':'')+(inQueue&&!isDrafted?' queued':'')+'" onclick="openPlayerModal('+p.id+')">'+
       '<span class="pos-badge pos-'+p.pos+'" style="font-size:9px;text-align:center">'+POS_LABEL[p.pos]+'</span>'+
       '<div><div class="drp-name">'+p.name+'</div><div class="drp-nation">'+p.nation+'</div></div>'+
       '<div class="drp-rating">'+p.rating+'</div>'+
@@ -1730,7 +1751,7 @@ function renderMySquadPanel(){
     html+='<div class="squad-pos-group" style="padding:6px 10px 0">';
     html+='<div class="squad-pos-label" style="font-size:9px;color:rgba(255,255,255,0.3);margin-bottom:4px;display:flex;justify-content:space-between"><span>'+POS_LABEL[pos]+'</span><span>'+group.length+'/'+lim.max+'</span></div>';
     group.forEach(p=>{
-      html+='<div class="dr-squad-chip"><span class="pos-badge pos-'+p.pos+'" style="font-size:8px">'+POS_LABEL[p.pos]+'</span><span class="dsc-name">'+p.name.split(' ').pop()+'</span><span class="dsc-rating">'+p.rating+'</span></div>';
+      html+='<div class="dr-squad-chip" style="cursor:pointer" onclick="openPlayerModal('+p.id+')"><span class="pos-badge pos-'+p.pos+'" style="font-size:8px">'+POS_LABEL[p.pos]+'</span><span class="dsc-name">'+p.name.split(' ').pop()+'</span><span class="dsc-rating">'+p.rating+'</span></div>';
     });
     for(let i=group.length;i<lim.max;i++){
       const req=i<lim.min;
@@ -2088,7 +2109,7 @@ function renderMyTeam(){
     html+=`<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--green);margin:12px 0 6px;letter-spacing:0.5px">${label}</div><div class="team-grid">`;
     grp.forEach(p=>{
       const pts=getPlayerPoints(p.id);
-      html+=`<div class="player-card" style="border-left-color:${col}">
+      html+=`<div class="player-card" style="border-left-color:${col};cursor:pointer" onclick="openPlayerModal(${p.id})">
         <div class="pc-meta"><span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span> · ${p.nation}</div>
         <div class="pc-name">${p.name}</div>
         <div style="display:flex;align-items:baseline;gap:6px;margin-top:6px">
@@ -2680,6 +2701,74 @@ async function importCSV(){
   await saveToDB();toast(entries.length+' Spieler importiert \u2705');
   document.getElementById('csv-input').value='';
 }
+
+// ── PLAYER MODAL ──────────────────────────────────────────────────
+function openPlayerModal(playerId){
+  const p=PLAYERS.find(x=>x.id===playerId);if(!p)return;
+  const owner=Object.entries(state.squads||{}).find(([,sq])=>sq.includes(p.id))?.[0]||null;
+  const ownerIdx=owner?state.managers.indexOf(owner):-1;
+  const matchdays=state.matchdays||[];
+  const mdPts=matchdays.map(md=>{
+    const e=md.entries?.find(e=>e.playerId===p.id);
+    return e?{name:md.name,pts:e.pts}:null;
+  }).filter(Boolean);
+  const totalPts=mdPts.reduce((s,x)=>s+x.pts,0);
+  const inQueue=drQueue.includes(p.id);
+  const isDrafted=!!owner;
+  const posColors={ST:'#1e40af',LA:'#854d0e',MI:'#9d174d',AN:'#166534'};
+
+  document.getElementById('player-modal-content').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+      <div></div>
+      <button onclick="closePlayerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0;line-height:1">✕</button>
+    </div>
+    <div class="pm-header">
+      <div class="pm-rating">${p.rating}</div>
+      <div>
+        <div class="pm-name">${p.name}</div>
+        <div class="pm-meta">
+          <span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
+          <span>${p.nation}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pm-section">
+      <div class="pm-section-title">Manager</div>
+      ${owner
+        ?`<div class="pm-owner-row">
+            <div class="avatar" style="background:${getColor(ownerIdx)}22;color:${getColor(ownerIdx)};font-size:11px;width:28px;height:28px;flex-shrink:0">${getInitials(owner)}</div>
+            <span style="font-weight:600">${owner}</span>
+            ${owner===myName?'<span style="font-size:10px;color:var(--green3);margin-left:auto">Dein Spieler</span>':''}
+          </div>`
+        :`<div style="font-size:13px;color:var(--muted);padding:8px 0">Nicht gedraftet</div>`}
+    </div>
+
+    <div class="pm-section">
+      <div class="pm-section-title">Saison-Punkte</div>
+      <div class="pm-total-pts">${totalPts}</div>
+      ${mdPts.length
+        ?mdPts.map(x=>`<div class="pm-matchday-row"><span>${x.name}</span><span class="pts-pill" style="font-size:13px">${x.pts>0?'+'+x.pts:x.pts}</span></div>`).join('')
+        :'<div style="font-size:12px;color:var(--muted);text-align:center;padding:4px 0">Noch keine Punkte</div>'}
+    </div>
+
+    ${!isDrafted?`
+    <button class="btn ${inQueue?'btn-gold':'btn-outline'} pm-watchlist-btn" onclick="toggleQueue(${p.id});openPlayerModal(${p.id})">
+      ${inQueue?'★ In Watchlist':'☆ Zu Watchlist hinzufügen'}
+    </button>`:''}
+  `;
+
+  const modal=document.getElementById('player-modal');
+  modal.style.display='flex';
+}
+
+function closePlayerModal(){
+  const modal=document.getElementById('player-modal');
+  if(modal)modal.style.display='none';
+}
+
+// Close on Escape key
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePlayerModal();});
 
 // ── COUNTDOWN ─────────────────────────────────────────────────────
 function renderCountdown(){
