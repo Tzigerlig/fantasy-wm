@@ -753,6 +753,9 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .dr-autodraft-btn:hover{background:rgba(240,192,64,0.1);border-color:rgba(240,192,64,0.3);color:#f0c040;}
 .dr-autodraft-btn.on{background:rgba(240,192,64,0.12);border-color:#f0c040;color:#f0c040;animation:drPulse 1.2s ease-in-out infinite;}
 .dr-urgent .dr-timer-num{color:#f87171;}
+.mock-banner{background:linear-gradient(90deg,#422006,#451a03);border-bottom:2px solid #f0c040;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#f0c040;font-weight:600;}
+.mock-banner-text{display:flex;align-items:center;gap:8px;}
+.mock-banner-close{background:none;border:1px solid #f0c040;color:#f0c040;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .dr-player-row{position:relative;}
 .dr-player-row .drp-rank{font-size:9px;color:rgba(255,255,255,0.2);width:14px;text-align:center;font-weight:700;}
 .dr-player-row:hover .drp-name{color:#4ade80;}
@@ -937,6 +940,12 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
             <span class="dr-dot"></span> Wartet
           </div>
         </div>
+      </div>
+
+      <!-- MOCK DRAFT BANNER -->
+      <div class="mock-banner" id="mock-banner" style="display:none">
+        <div class="mock-banner-text"><span>🎭</span><span>MOCK DRAFT — Picks werden NICHT gespeichert · Nur zum Üben</span></div>
+        <button class="mock-banner-close" onclick="toggleMockDraft()">✕ Beenden</button>
       </div>
 
       <!-- ON THE CLOCK + NEXT UP BAR -->
@@ -1636,7 +1645,8 @@ function getDraftedIds(){
 function renderDraftView(){
   rebuildFeedFromState();
   updateDraftHeader();
-  if(state.phase==='setup'&&!state.draftOrder?.length){
+  const ds=mockDraftActive&&mockDraftState?mockDraftState:state;
+  if(ds.phase==='setup'&&!ds.draftOrder?.length&&!mockDraftActive){
     renderDraftNotStarted();
     return;
   }
@@ -1644,7 +1654,7 @@ function renderDraftView(){
   renderDraftBoardTable();
   renderMySquadPanel();
   updateDraftFeed();
-  startPickTimer();
+  if(!mockDraftActive)startPickTimer();
 }
 
 function renderDraftNotStarted(){
@@ -1661,8 +1671,9 @@ function renderDraftNotStarted(){
 }
 
 function updateDraftHeader(){
-  const pick=state.draftPick||0;
-  const total=(state.draftOrder||[]).length;
+  const ds=mockDraftActive&&mockDraftState?mockDraftState:state;
+  const pick=ds.draftPick||0;
+  const total=(ds.draftOrder||[]).length;
   const roundEl=document.getElementById('dr-round-info');
   const pickEl=document.getElementById('dr-pick-info');
   const nameEl=document.getElementById('dr-turn-name');
@@ -1673,11 +1684,11 @@ function updateDraftHeader(){
   const nextBar=document.getElementById('dr-next-bar');
 
   if(squadCount){
-    const myLen=(state.squads[myName]||[]).length;
-    squadCount.textContent=myLen+'/'+(state.squadSize||14);
+    const myLen=(ds.squads[myName]||[]).length;
+    squadCount.textContent=myLen+'/'+(ds.squadSize||14);
   }
 
-  if(!total||state.phase==='setup'){
+  if(!total||ds.phase==='setup'){
     if(nameEl)nameEl.textContent='Draft nicht gestartet';
     if(roundEl)roundEl.textContent='Runde —';
     if(pickEl)pickEl.textContent='Pick —';
@@ -1693,15 +1704,15 @@ function updateDraftHeader(){
     if(timerWrap)timerWrap.style.display='none';
     if(statusEl)statusEl.innerHTML='<span class="dr-dot" style="background:#f0c040"></span> Beendet';
     if(clockBar)clockBar.style.display='none';
-    if(nextBar)nextBar.innerHTML='';
+    if(nextBar)nextBar.innerHTML=`<button class="dr-autodraft-btn${mockDraftActive?' on':''}" id="mock-draft-btn" onclick="toggleMockDraft()">${mockDraftActive?'🎭 Mock beenden':'🎭 Mock Draft'}</button>`;
     stopPickTimer();
     return;
   }
-  const current=state.draftOrder[pick];
+  const current=ds.draftOrder[pick];
   const isMyTurn=current===myName;
-  const n=state.managers.length;
+  const n=ds.managers.length;
   const round=Math.floor(pick/n)+1;
-  if(roundEl)roundEl.textContent='Runde '+round+' / '+(state.squadSize||14);
+  if(roundEl)roundEl.textContent='Runde '+round+' / '+(ds.squadSize||14);
   if(pickEl)pickEl.textContent='Pick '+(pick+1)+' von '+total;
   if(nameEl){
     nameEl.textContent=isMyTurn?'🟢 Du bist dran!':current+' wählt...';
@@ -1736,11 +1747,12 @@ function updateDraftHeader(){
   // Next up bar: show next 5 picks
   if(nextBar){
     const upcoming=[];
-    for(let i=pick+1;i<Math.min(pick+6,total);i++)upcoming.push(state.draftOrder[i]);
+    for(let i=pick+1;i<Math.min(pick+6,total);i++)upcoming.push(ds.draftOrder[i]);
     const autoDraftOn=window._autoDraft||false;
     nextBar.innerHTML=`<span class="dr-next-lbl">Als nächstes:</span>`+
       upcoming.map((m,i)=>`<div class="dr-next-chip${m===myName?' me':''}">${i===0?'→ ':''}${m}</div>`).join('')+
-      `<button class="dr-autodraft-btn${autoDraftOn?' on':''}" onclick="toggleAutoDraft(this)">⚡ Auto-Draft ${autoDraftOn?'AN':'AUS'}</button>`;
+      `<button class="dr-autodraft-btn${autoDraftOn&&!mockDraftActive?' on':''}" onclick="toggleAutoDraft(this)" ${mockDraftActive?'disabled style="opacity:0.4"':''}>⚡ Auto-Draft ${autoDraftOn&&!mockDraftActive?'AN':'AUS'}</button>`+
+      `<button class="dr-autodraft-btn${mockDraftActive?' on':''}" id="mock-draft-btn" onclick="toggleMockDraft()" style="margin-left:4px">${mockDraftActive?'🎭 Mock beenden':'🎭 Mock Draft'}</button>`;
   }
 }
 
@@ -1805,6 +1817,130 @@ function _updateAutoDraftBtn(){
   if(!btn)return;
   if(autoDraftEnabled){btn.textContent='⚡ Auto-Draft AN · '+autoSimCount+' simuliert';btn.classList.add('on');}
   else{btn.textContent='⚡ Auto-Draft AUS';btn.classList.remove('on');}
+}
+
+// ── MOCK DRAFT ───────────────────────────────────────────────────
+let mockDraftActive=false;
+let mockDraftState=null;
+
+async function toggleMockDraft(){
+  if(mockDraftActive){
+    if(!confirm('Mock Draft beenden? Alle Mock-Picks werden verworfen.'))return;
+    mockDraftActive=false;
+    mockDraftState=null;
+    const btn=document.getElementById('mock-draft-btn');
+    if(btn){btn.textContent='🎭 Mock Draft';btn.classList.remove('active');}
+    const banner=document.getElementById('mock-banner');
+    if(banner)banner.style.display='none';
+    renderDraftView();
+    toast('Mock Draft beendet — echte Liga wiederhergestellt');
+    return;
+  }
+  mockDraftActive=true;
+  mockDraftState=JSON.parse(JSON.stringify(state));
+  mockDraftState.draftPick=0;
+  mockDraftState.squads={};
+  mockDraftState.managers.forEach(m=>mockDraftState.squads[m]=[]);
+
+  if(!mockDraftState.draftOrder||!mockDraftState.draftOrder.length){
+    const managers=mockDraftState.managers.length>=2
+      ?mockDraftState.managers
+      :[myName,'Demo1','Demo2','Demo3'];
+    mockDraftState.managers=managers;
+    mockDraftState.squads={};
+    managers.forEach(m=>mockDraftState.squads[m]=[]);
+    const order=[];
+    const size=mockDraftState.squadSize||14;
+    for(let r=0;r<size;r++){
+      const round=r%2===1?[...managers].reverse():[...managers];
+      order.push(...round);
+    }
+    mockDraftState.draftOrder=order;
+    mockDraftState.squadSize=size;
+  }
+  mockDraftState.phase='draft';
+
+  const btn=document.getElementById('mock-draft-btn');
+  if(btn){btn.textContent='🎭 Mock beenden';btn.classList.add('active');}
+  const banner=document.getElementById('mock-banner');
+  if(banner)banner.style.display='flex';
+
+  toast('🎭 Mock Draft gestartet — Picks werden NICHT gespeichert!');
+  renderDraftView();
+  runMockAutoDraft();
+}
+
+async function runMockAutoDraft(){
+  if(!mockDraftActive||!mockDraftState)return;
+  if(mockDraftState.phase!=='draft')return;
+  const pick=mockDraftState.draftPick||0;
+  const order=mockDraftState.draftOrder||[];
+  if(pick>=order.length)return;
+  const current=order[pick];
+  if(current===myName)return;
+
+  setTimeout(()=>{
+    if(!mockDraftActive||!mockDraftState)return;
+    const currentPick=mockDraftState.draftPick||0;
+    if(currentPick>=order.length)return;
+    const manager=order[currentPick];
+    if(manager===myName)return;
+    const draftedIds=new Set();
+    Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
+    const managerSquad=mockDraftState.squads[manager]||[];
+    const posCounts={ST:0,LA:0,MI:0,AN:0};
+    managerSquad.forEach(id=>{const p=PLAYERS.find(x=>x.id===id);if(p)posCounts[p.pos]++;});
+    const limits=getPosLimits(mockDraftState.squadSize||14);
+    const available=[...PLAYERS].filter(p=>{
+      if(draftedIds.has(p.id))return false;
+      const lim=limits[p.pos];
+      return lim?posCounts[p.pos]<lim.max:true;
+    }).sort((a,b)=>b.rating-a.rating);
+    if(!available.length)return;
+    mockDraftState.squads[manager].push(available[0].id);
+    mockDraftState.draftPick=currentPick+1;
+    if(mockDraftState.draftPick>=order.length){
+      mockDraftState.phase='active';
+      toast('🎭 Mock Draft abgeschlossen! Schau dir dein Mock-Team an.');
+    }
+    addFeedItem(manager,available[0].name,available[0].pos);
+    renderDraftView();
+    if(mockDraftActive&&mockDraftState.phase==='draft'){
+      const nextManager=order[mockDraftState.draftPick||0];
+      if(nextManager&&nextManager!==myName)runMockAutoDraft();
+    }
+  },600);
+}
+
+async function mockDraftPlayer(playerId){
+  if(!mockDraftActive||!mockDraftState)return;
+  const pick=mockDraftState.draftPick||0;
+  const order=mockDraftState.draftOrder||[];
+  if(pick>=order.length)return;
+  if(order[pick]!==myName)return;
+  const draftedIds=new Set();
+  Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
+  if(draftedIds.has(playerId)){toast('Bereits gedraftet!');return;}
+  const p=PLAYERS.find(x=>x.id===playerId);
+  if(!p)return;
+  const myMockSquad=mockDraftState.squads[myName]||[];
+  const posCounts={ST:0,LA:0,MI:0,AN:0};
+  myMockSquad.forEach(id=>{const pp=PLAYERS.find(x=>x.id===id);if(pp)posCounts[pp.pos]++;});
+  const limits=getPosLimits(mockDraftState.squadSize||14);
+  if(posCounts[p.pos]>=(limits[p.pos]?.max||99)){toast('Positionslimit erreicht!');return;}
+  mockDraftState.squads[myName].push(playerId);
+  mockDraftState.draftPick=pick+1;
+  if(mockDraftState.draftPick>=order.length){
+    mockDraftState.phase='active';
+    toast('🎭 Dein Mock-Kader ist fertig!');
+  }
+  addFeedItem(myName,p.name,p.pos);
+  // KEIN saveToDB() — Mock wird nie gespeichert
+  renderDraftView();
+  if(mockDraftActive&&mockDraftState.phase==='draft'){
+    const nextManager=order[mockDraftState.draftPick||0];
+    if(nextManager&&nextManager!==myName)runMockAutoDraft();
+  }
 }
 
 function autoPickPlayer(){
@@ -1916,13 +2052,19 @@ function toggleDrQueue(){
 }
 
 function renderDraftPool(){
-  const drafted=getDraftedIds();
+  const ds=mockDraftActive&&mockDraftState?mockDraftState:state;
+  // Compute drafted IDs from active state (real or mock)
+  const drafted=new Set();
+  Object.values(ds.squads||{}).forEach(sq=>sq.forEach(id=>drafted.add(id)));
   const search=(document.getElementById('draft-search')||{}).value||'';
   const el=document.getElementById('draft-pool');
   if(!el)return;
-  const isMyTurn=state.phase==='draft'&&state.draftOrder&&state.draftOrder[state.draftPick||0]===myName;
-  const counts=getMyPosCounts();
-  const limits=getPosLimits(state.squadSize||14);
+  const isMyTurn=ds.phase==='draft'&&ds.draftOrder&&ds.draftOrder[ds.draftPick||0]===myName;
+  // Position counts for my squad in active state
+  const mySquad=ds.squads[myName]||[];
+  const counts={ST:0,LA:0,MI:0,AN:0};
+  mySquad.forEach(id=>{const p=PLAYERS.find(x=>x.id===id);if(p)counts[p.pos]++;});
+  const limits=getPosLimits(ds.squadSize||14);
 
   // Limits bar
   const limBar=document.getElementById('draft-limits-bar');
@@ -1960,12 +2102,16 @@ function renderDraftPool(){
   el.innerHTML=players.map(p=>{
     const isDrafted=drafted.has(p.id);
     const inQueue=drQueue.includes(p.id);
-    const posOk=!isDrafted&&canDraftPos(p.pos);
+    // Position check against active state (real or mock)
+    const posLimit=limits[p.pos];
+    const posAtMax=posLimit&&counts[p.pos]>=(posLimit.max||99);
+    const posOk=!isDrafted&&!posAtMax;
     const limitReached=!isDrafted&&!posOk;
+    const draftFn=mockDraftActive?'mockDraftPlayer':'draftPlayer';
     const draftBtn=isDrafted
       ?'<div class="dr-action-btn dr-drafted-icon">✓</div>'
       :isMyTurn&&posOk
-        ?'<div class="dr-action-btn dr-draft-btn" onclick="event.stopPropagation();draftPlayer('+p.id+')">+</div>'
+        ?'<div class="dr-action-btn dr-draft-btn" onclick="event.stopPropagation();'+draftFn+'('+p.id+')">+</div>'
         :'<div class="dr-action-btn dr-drafted-icon" style="opacity:0.3">+</div>';
     const queueBtn=isDrafted?''
       :'<div class="dr-action-btn dr-queue-btn'+(inQueue?' in-queue':'')+'" onclick="event.stopPropagation();toggleQueue('+p.id+')" title="'+(inQueue?'Aus Watchlist entfernen':'Zur Watchlist hinzufügen')+'">'+(inQueue?'★':'☆')+'</div>';
@@ -1992,9 +2138,10 @@ function toggleQueue(id){
 function renderDraftBoardTable(){
   const el=document.getElementById('dr-board-wrap');
   if(!el)return;
-  const managers=state.managers||[];
-  const squadSize=state.squadSize||14;
-  const currentPick=state.draftPick||0;
+  const ds=mockDraftActive&&mockDraftState?mockDraftState:state;
+  const managers=ds.managers||[];
+  const squadSize=ds.squadSize||14;
+  const currentPick=ds.draftPick||0;
 
   let html='<table class="dr-board-table"><thead><tr>';
   html+='<th style="width:28px">#</th>';
@@ -2008,21 +2155,21 @@ function renderDraftBoardTable(){
   for(let r=0;r<squadSize;r++){
     html+='<tr>';
     html+='<td class="dr-round-label">'+( r+1)+'</td>';
-    const isSnakeReverse=state.draftType==='snake'&&r%2===1;
+    const isSnakeReverse=ds.draftType==='snake'&&r%2===1;
     const roundManagers=isSnakeReverse?[...managers].reverse():[...managers];
 
     roundManagers.forEach((m,colIdx)=>{
       const pickIdx=r*managers.length+colIdx;
-      const isCurrent=pickIdx===currentPick&&state.phase==='draft';
+      const isCurrent=pickIdx===currentPick&&ds.phase==='draft';
       const isDone=pickIdx<currentPick;
-      const squad=state.squads[m]||[];
+      const squad=ds.squads[m]||[];
       let pickedPlayer=null;
       if(isDone){
         // Find which player was picked at this spot
         const picksSoFar=pickIdx+1;
         let managerPickNum=0;
         for(let pi=0;pi<picksSoFar;pi++){
-          if(state.draftOrder[pi]===m)managerPickNum++;
+          if(ds.draftOrder[pi]===m)managerPickNum++;
         }
         if(managerPickNum>0&&squad[managerPickNum-1]){
           pickedPlayer=PLAYERS.find(p=>p.id===squad[managerPickNum-1]);
@@ -2051,13 +2198,14 @@ function renderDraftBoardTable(){
 function renderMySquadPanel(){
   const el=document.getElementById('fpl-my-squad');
   if(!el)return;
-  const squad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
-  const limits=getPosLimits(state.squadSize||14);
-  const total=state.squadSize||14;
+  const ds=mockDraftActive&&mockDraftState?mockDraftState:state;
+  const squad=(ds.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
+  const limits=getPosLimits(ds.squadSize||14);
+  const total=ds.squadSize||14;
   const pct=Math.round(squad.length/total*100);
 
   let html='';
-  if(squad.length>=total&&state.phase==='draft'){
+  if(squad.length>=total&&ds.phase==='draft'){
     html+='<div style="margin:8px 10px;padding:10px;border-radius:8px;background:linear-gradient(135deg,rgba(74,222,128,0.12),rgba(16,185,129,0.08));border:1px solid rgba(74,222,128,0.3);text-align:center;font-size:13px;font-weight:700;color:#4ade80">Du bist fertig! 🎉</div>';
   }
   html+='<div class="dr-progress-bar"><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px;display:flex;justify-content:space-between"><span>Kader</span><span>'+squad.length+'/'+total+'</span></div><div class="dr-progress-track"><div class="dr-progress-fill" style="width:'+pct+'%"></div></div></div>';
