@@ -825,7 +825,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
     <button class="nav-btn" onclick="showView('draft',this)">🎯 Draft</button>
     <button class="nav-btn" onclick="showView('myteam',this)">👕 Team</button>
     <button class="nav-btn" onclick="showView('aufstellung',this)">🟩 Aufstellung</button>
-    <button class="nav-btn" onclick="showView('trade',this)">🔄 Trade</button>
+    <button class="nav-btn" onclick="showView('trade',this)">🔄 Trade <span id="nav-trade-badge" style="display:none;background:#c62828;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:3px;vertical-align:middle"></span></button>
     <button class="nav-btn" onclick="showView('live',this)">🔴 Live</button>
     <button class="nav-btn" onclick="showView('punkte',this)">⚽ Punkte</button>
     <button class="nav-btn" onclick="showView('rangliste',this)">🏅 Rangliste</button>
@@ -2332,8 +2332,14 @@ let tradeMySelected=[],tradeTheirSelected=[],tradeTargetManager='';
 
 function updateTradeBadge(){
   const b=document.getElementById('trade-badge');if(!b)return;
-  const n=(state.tradeOffers||[]).filter(o=>o.to===myName&&o.status==='pending').length;
+  const incoming=(state.tradeOffers||[]).filter(o=>o.to===myName&&o.status==='pending');
+  const n=incoming.length;
   b.innerHTML=n?`<span class="notification-dot">${n}</span>`:'';
+  const navBadge=document.getElementById('nav-trade-badge');
+  if(navBadge){
+    if(n>0){navBadge.textContent=n;navBadge.style.display='inline';}
+    else{navBadge.style.display='none';}
+  }
 }
 
 function switchTradeTab(tab,btn){
