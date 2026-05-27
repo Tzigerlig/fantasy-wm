@@ -526,6 +526,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .dr-topbar-right{display:flex;justify-content:flex-end;}
 .dr-status{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,0.5);font-weight:500;}
 .dr-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;flex-shrink:0;}
+@keyframes clockGlow{0%,100%{box-shadow:0 0 20px rgba(74,222,128,0.2)}50%{box-shadow:0 0 50px rgba(74,222,128,0.5),0 0 80px rgba(74,222,128,0.15)}}
+.dr-topbar.active{animation:clockGlow 1.5s ease-in-out infinite;background:linear-gradient(90deg,#0a2a18,#0f3d20,#0a2a18)!important;}
 
 /* Main Grid */
 .dr-main{
@@ -613,7 +615,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .dr-draft-btn:hover{background:#22c573;color:#fff;transform:scale(1.1);}
 .dr-queue-btn{background:#1a3a4a;color:#60a5fa;}
 .dr-queue-btn:hover{background:#2563eb;color:#fff;}
-.dr-queue-btn.in-queue{background:#1a3060;color:#93c5fd;}
+.dr-queue-btn.in-queue{background:rgba(240,192,64,0.1);color:#f0c040;border-color:rgba(240,192,64,0.3);}
+.dr-player-row.limit-reached{opacity:0.45;}
 .dr-drafted-icon{background:#1a2e1a;color:#166534;cursor:default;}
 
 /* Limits bar */
@@ -744,7 +747,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   white-space:nowrap;flex-shrink:0;transition:all 0.15s;
 }
 .dr-autodraft-btn:hover{background:rgba(240,192,64,0.1);border-color:rgba(240,192,64,0.3);color:#f0c040;}
-.dr-autodraft-btn.on{background:rgba(240,192,64,0.12);border-color:#f0c040;color:#f0c040;}
+.dr-autodraft-btn.on{background:rgba(240,192,64,0.12);border-color:#f0c040;color:#f0c040;animation:drPulse 1.2s ease-in-out infinite;}
 .dr-urgent .dr-timer-num{color:#f87171;}
 .dr-player-row{position:relative;}
 .dr-player-row .drp-rank{font-size:9px;color:rgba(255,255,255,0.2);width:14px;text-align:center;font-weight:700;}
@@ -1592,6 +1595,8 @@ function updateDraftHeader(){
     nameEl.textContent=isMyTurn?'🟢 Du bist dran!':current+' wählt...';
     nameEl.className='dr-turn-name'+(isMyTurn?' my-turn':'');
   }
+  const topbar=document.querySelector('.dr-topbar');
+  if(topbar)topbar.classList.toggle('active',isMyTurn);
   if(timerWrap)timerWrap.style.display=isMyTurn?'flex':'none';
   if(statusEl)statusEl.innerHTML='<span class="dr-dot"></span> Live';
   const subtitleEl=document.getElementById('dr-board-subtitle');
@@ -1672,13 +1677,22 @@ function updateTimerUI(){
 
 let _autoDraft=false;
 let autoDraftEnabled=false;
+let autoSimCount=0;
 function toggleAutoDraft(btn){
   autoDraftEnabled=!autoDraftEnabled;
   _autoDraft=autoDraftEnabled;
   window._autoDraft=autoDraftEnabled;
-  if(btn){btn.textContent='⚡ Auto-Draft '+(autoDraftEnabled?'AN':'AUS');btn.classList.toggle('on',autoDraftEnabled);}
+  if(!autoDraftEnabled)autoSimCount=0;
+  const label=autoDraftEnabled?('AN · '+autoSimCount+' simuliert'):'AUS';
+  if(btn){btn.textContent='⚡ Auto-Draft '+label;btn.classList.toggle('on',autoDraftEnabled);}
   if(autoDraftEnabled){toast('Auto-Draft AN — simuliert alle anderen Manager');runAutoDraft();}
   else toast('Auto-Draft AUS');
+}
+function _updateAutoDraftBtn(){
+  const btn=document.querySelector('.dr-autodraft-btn');
+  if(!btn)return;
+  if(autoDraftEnabled){btn.textContent='⚡ Auto-Draft AN · '+autoSimCount+' simuliert';btn.classList.add('on');}
+  else{btn.textContent='⚡ Auto-Draft AUS';btn.classList.remove('on');}
 }
 
 function autoPickPlayer(){
@@ -1758,9 +1772,11 @@ async function runAutoDraft(){
       _autoDraft = false;
       window._autoDraft = false;
     }
+    autoSimCount++;
     addFeedItem(manager, chosen.name, chosen.pos);
     await saveToDB();
     renderDraftView();
+    _updateAutoDraftBtn();
 
     if(autoDraftEnabled && state.phase === 'draft'){
       const nextManager = order[state.draftPick];
@@ -1833,14 +1849,16 @@ function renderDraftPool(){
     const isDrafted=drafted.has(p.id);
     const inQueue=drQueue.includes(p.id);
     const posOk=!isDrafted&&canDraftPos(p.pos);
+    const limitReached=!isDrafted&&!posOk;
     const draftBtn=isDrafted
       ?'<div class="dr-action-btn dr-drafted-icon">✓</div>'
       :isMyTurn&&posOk
         ?'<div class="dr-action-btn dr-draft-btn" onclick="event.stopPropagation();draftPlayer('+p.id+')">+</div>'
         :'<div class="dr-action-btn dr-drafted-icon" style="opacity:0.3">+</div>';
     const queueBtn=isDrafted?''
-      :'<div class="dr-action-btn dr-queue-btn'+(inQueue?' in-queue':'')+'" onclick="event.stopPropagation();toggleQueue('+p.id+')" title="Watchlist">'+(inQueue?'★':'☆')+'</div>';
-    return '<div class="dr-player-row clickable'+(isDrafted?' drafted':'')+(inQueue&&!isDrafted?' queued':'')+'" onclick="openPlayerModal('+p.id+')">'+
+      :'<div class="dr-action-btn dr-queue-btn'+(inQueue?' in-queue':'')+'" onclick="event.stopPropagation();toggleQueue('+p.id+')" title="'+(inQueue?'Aus Watchlist entfernen':'Zur Watchlist hinzufügen')+'">'+(inQueue?'★':'☆')+'</div>';
+    const rowTitle=limitReached?'Positionslimit erreicht für '+POS_LABEL[p.pos]:'';
+    return '<div class="dr-player-row clickable'+(isDrafted?' drafted':'')+(limitReached?' limit-reached':'')+(inQueue&&!isDrafted?' queued':'')+'" onclick="openPlayerModal('+p.id+')" title="'+rowTitle+'">'+
       '<span class="pos-badge pos-'+p.pos+'" style="font-size:9px;text-align:center">'+POS_LABEL[p.pos]+'</span>'+
       '<div><div class="drp-name">'+p.name+'</div><div class="drp-nation">'+p.nation+'</div></div>'+
       '<div class="drp-rating">'+p.rating+'</div>'+
@@ -1870,7 +1888,8 @@ function renderDraftBoardTable(){
   html+='<th style="width:28px">#</th>';
   managers.forEach((m,i)=>{
     const color=getColor(i);
-    html+='<th style="color:'+color+';max-width:70px;overflow:hidden;text-overflow:ellipsis">'+m+'</th>';
+    const shortName=m.length>8?m.slice(0,8)+'…':m;
+    html+='<th style="color:'+color+';max-width:70px;overflow:hidden;text-overflow:ellipsis" title="'+m+'">'+shortName+'</th>';
   });
   html+='</tr></thead><tbody>';
 
@@ -1898,7 +1917,7 @@ function renderDraftBoardTable(){
         }
       }
       if(pickedPlayer){
-        html+='<td><div class="dr-board-cell"><span class="bc-name">'+pickedPlayer.name.split(' ').pop()+'</span><span class="bc-pos pos-badge pos-'+pickedPlayer.pos+'" style="font-size:8px">'+POS_LABEL[pickedPlayer.pos]+'</span></div></td>';
+        html+='<td><div class="dr-board-cell"><span class="bc-name">'+pickedPlayer.name.split(' ').pop()+'</span><span class="bc-pos pos-badge pos-'+pickedPlayer.pos+'" style="font-size:8px">'+POS_LABEL[pickedPlayer.pos]+'</span><span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:2px">'+pickedPlayer.rating+'</span></div></td>';
       } else if(isCurrent){
         html+='<td><div class="dr-board-cell current"><span style="font-size:16px">⏳</span></div></td>';
       } else {
@@ -1925,7 +1944,11 @@ function renderMySquadPanel(){
   const total=state.squadSize||14;
   const pct=Math.round(squad.length/total*100);
 
-  let html='<div class="dr-progress-bar"><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px;display:flex;justify-content:space-between"><span>Kader</span><span>'+squad.length+'/'+total+'</span></div><div class="dr-progress-track"><div class="dr-progress-fill" style="width:'+pct+'%"></div></div></div>';
+  let html='';
+  if(squad.length>=total&&state.phase==='draft'){
+    html+='<div style="margin:8px 10px;padding:10px;border-radius:8px;background:linear-gradient(135deg,rgba(74,222,128,0.12),rgba(16,185,129,0.08));border:1px solid rgba(74,222,128,0.3);text-align:center;font-size:13px;font-weight:700;color:#4ade80">Du bist fertig! 🎉</div>';
+  }
+  html+='<div class="dr-progress-bar"><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px;display:flex;justify-content:space-between"><span>Kader</span><span>'+squad.length+'/'+total+'</span></div><div class="dr-progress-track"><div class="dr-progress-fill" style="width:'+pct+'%"></div></div></div>';
 
   ['ST','LA','MI','AN'].forEach(pos=>{
     const lim=limits[pos];
