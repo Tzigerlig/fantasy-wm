@@ -3660,14 +3660,16 @@ async function init(){
       document.getElementById('name-entry').style.display='flex';
       renderNameEntry('login');
     }
-  } else if(savedName&&state.players&&!state.players[savedName]&&Object.keys(state.players).length===0){
-    // Old app without PIN system — accept stored name as-is
-    myName=savedName;
-    completeLogin();
-  } else if(savedName&&!state.players){
-    // No PIN system in state yet — backward compat
-    myName=savedName;
-    completeLogin();
+  } else if(savedName&&(!state.players||!state.players[savedName])){
+    // Spieler existiert noch nicht im PIN-System
+    // Zeige Register-Form mit vorausgefülltem Namen
+    document.getElementById('name-entry').style.display='flex';
+    renderNameEntry('register');
+    // Namen vorausfüllen
+    setTimeout(()=>{
+      const nameInput=document.getElementById('name-input');
+      if(nameInput)nameInput.value=savedName;
+    },100);
   } else {
     document.getElementById('name-entry').style.display='flex';
     renderNameEntry(state.managers&&state.managers.length>0?'login':'register');
