@@ -3619,6 +3619,13 @@ window.addEventListener('appinstalled',()=>{
 function openAdmin(){showAdminPanel();}
 
 async function init(){
+  // TEMP: Für Testing - localStorage komplett leeren wenn ?reset in URL
+  if(new URLSearchParams(window.location.search).get('reset')==='1'){
+    localStorage.removeItem('fwm_myname');
+    localStorage.removeItem('fwm_pin');
+    localStorage.removeItem('fwm_device_id');
+    console.log('Login reset');
+  }
   const urlParams=new URLSearchParams(window.location.search);
   if(urlParams.get('admin')===ADMIN_PW){
     await loadFromDB();
