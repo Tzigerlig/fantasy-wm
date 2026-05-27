@@ -1207,22 +1207,31 @@ function sendNotif(title,body,icon='⚽'){
 }
 
 async function setMyName(){
-  const val=(document.getElementById('name-input')||{}).value||'';
-  const name=val.trim();
-  if(!name){toast('Bitte Namen eingeben!');return;}
-  myName=name;
-  localStorage.setItem('fwm_myname',myName);
-  if(!state.managers.includes(myName)){
-    state.managers.push(myName);
-    if(!state.squads[myName])state.squads[myName]=[];
-    await saveToDB();
+  try{
+    const val=(document.getElementById('name-input')||{}).value||'';
+    const name=val.trim();
+    if(!name){toast('Bitte Namen eingeben!');return;}
+    myName=name;
+    localStorage.setItem('fwm_myname',myName);
+    if(!state.managers.includes(myName)){
+      state.managers.push(myName);
+      if(!state.squads[myName])state.squads[myName]=[];
+      await saveToDB();
+    }
+    document.getElementById('name-entry').style.display='none';
+    const ud=document.getElementById('user-display');
+    if(ud)ud.textContent='👤 '+myName;
+    document.getElementById('app').style.display='flex';
+    document.getElementById('app').style.flexDirection='column';
+    renderSetup();
+    updatePhaseBadge();
+    startAutoSync();
+    toast('Willkommen, '+myName+'! 👋');
+    requestNotificationPermission();
+  }catch(e){
+    toast('Fehler beim Anmelden: '+e.message);
+    console.error('setMyName error:',e);
   }
-  document.getElementById('name-entry').style.display='none';
-  const ud=document.getElementById('user-display');
-  if(ud)ud.textContent='👤 '+myName;
-  renderSetup();
-  toast('Willkommen, '+myName+'! 👋');
-  requestNotificationPermission();
 }
 
 function renderSetup(){
