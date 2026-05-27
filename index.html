@@ -2255,13 +2255,16 @@ function renderRangliste(){
       const pts=getManagerPoints(m);
       const cl=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
       const medal=['🥇','🥈','🥉'][i]||'#'+(i+1);
-      return `<tr class="${cl}"><td class="rank-num">${medal}</td>
+      const safe=m.replace(/\W/g,'_');
+      return `<tr class="${cl}" style="cursor:pointer" onclick="toggleManagerDetails('${m.replace(/'/g,"\\'")}')">
+        <td class="rank-num">${medal}</td>
         <td><div style="display:flex;align-items:center;gap:8px">
           <div class="avatar" style="background:${getColor(i)}22;color:${getColor(i)};font-size:11px;width:28px;height:28px">${getInitials(m)}</div>
           <span style="font-weight:${m===myName?700:500}">${m}${m===myName?' <span style="font-size:10px;color:var(--green3)">(Du)</span>':''}</span>
         </div></td>
         <td style="color:var(--muted)">${(state.squads[m]||[]).length}</td>
-        <td class="rank-pts">${pts}</td></tr>`;
+        <td class="rank-pts">${pts} <span style="font-size:10px;color:var(--muted)">▾</span></td></tr>
+      <tr id="mgr-detail-${safe}" style="display:none"><td colspan="4" style="padding:4px 8px 10px;background:#f9fafb;border-bottom:1px solid var(--border)">${renderManagerDetails(m)}</td></tr>`;
     }).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Noch keine Manager</td></tr>';
   }
   const topEl=document.getElementById('top-players-list');
@@ -2276,6 +2279,37 @@ function renderRangliste(){
         <span class="pts-pill">${p.pts}</span></div>`;
     }).join(''):'<div style="color:var(--muted);font-size:13px;padding:8px 0">Noch keine Punkte</div>';
   }
+}
+
+function toggleManagerDetails(manager){
+  const safe=manager.replace(/\W/g,'_');
+  const el=document.getElementById('mgr-detail-'+safe);
+  if(!el)return;
+  el.style.display=el.style.display==='none'?'table-row':'none';
+}
+
+function renderManagerDetails(manager){
+  const matchdays=state.matchdays||[];
+  const squad=state.squads[manager]||[];
+  let html='';
+  matchdays.forEach(md=>{
+    const mdPts=squad.reduce((sum,id)=>{
+      const e=md.entries?.find(e=>e.playerId===id);
+      return sum+(e?e.pts:0);
+    },0);
+    if(mdPts===0)return;
+    const topPlayer=squad.map(id=>{
+      const e=md.entries?.find(e=>e.playerId===id);
+      return{id,pts:e?e.pts:0};
+    }).sort((a,b)=>b.pts-a.pts)[0];
+    const tp=topPlayer?PLAYERS.find(p=>p.id===topPlayer.id):null;
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border);gap:8px">';
+    html+='<span style="flex:1;font-weight:500">'+md.name+'</span>';
+    html+='<span style="color:var(--muted);flex:1;text-align:center">'+(tp?tp.name:'')+'</span>';
+    html+='<span style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;color:var(--green2);min-width:32px;text-align:right">'+mdPts+'</span>';
+    html+='</div>';
+  });
+  return html||'<div style="color:var(--muted);font-size:12px;padding:8px">Noch keine Punkte</div>';
 }
 
 // ── PUNKTE ────────────────────────────────────────────────────────
