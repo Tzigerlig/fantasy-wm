@@ -1564,11 +1564,13 @@ function updateTimerUI(){
 }
 
 let _autoDraft=false;
+let autoDraftEnabled=false;
 function toggleAutoDraft(btn){
-  _autoDraft=!_autoDraft;
-  window._autoDraft=_autoDraft;
-  if(btn){btn.textContent='⚡ Auto-Draft '+(_autoDraft?'AN':'AUS');btn.classList.toggle('on',_autoDraft);}
-  if(_autoDraft)toast('Auto-Draft AN — wird automatisch den besten Spieler wählen');
+  autoDraftEnabled=!autoDraftEnabled;
+  _autoDraft=autoDraftEnabled;
+  window._autoDraft=autoDraftEnabled;
+  if(btn){btn.textContent='⚡ Auto-Draft '+(autoDraftEnabled?'AN':'AUS');btn.classList.toggle('on',autoDraftEnabled);}
+  if(autoDraftEnabled){toast('Auto-Draft AN — simuliert alle anderen Manager');runAutoDraft();}
   else toast('Auto-Draft AUS');
 }
 
@@ -1587,10 +1589,79 @@ function autoPickPlayer(){
 
 // Auto-draft trigger (called by timer when _autoDraft is on or time runs out)
 function checkAutoDraft(){
-  if(window._autoDraft){
+  if(autoDraftEnabled&&state.phase==='draft'){
     const pick=state.draftPick||0;
-    if(state.phase==='draft'&&state.draftOrder[pick]===myName){autoPickPlayer();}
+    const current=(state.draftOrder||[])[pick];
+    if(current===myName)autoPickPlayer();
+    else runAutoDraft();
   }
+}
+
+async function runAutoDraft(){
+  if(!autoDraftEnabled) return;
+  if(state.phase !== 'draft') return;
+  const pick = state.draftPick || 0;
+  const order = state.draftOrder || [];
+  if(pick >= order.length) return;
+  const current = order[pick];
+  if(current === myName) return;
+
+  setTimeout(async () => {
+    if(!autoDraftEnabled) return;
+    if(state.phase !== 'draft') return;
+    const currentPick = state.draftPick || 0;
+    if(currentPick >= order.length) return;
+    const manager = order[currentPick];
+    if(manager === myName) return;
+
+    const drafted = getDraftedIds();
+    const managerSquad = state.squads[manager] || [];
+    const squadSize = state.squadSize || 6;
+    if(managerSquad.length >= squadSize) return;
+
+    const limits = getPosLimits(squadSize);
+    const posCounts = {ST:0,LA:0,MI:0,AN:0};
+    managerSquad.forEach(id => {
+      const p = PLAYERS.find(x => x.id===id);
+      if(p) posCounts[p.pos]++;
+    });
+
+    const available = [...PLAYERS]
+      .filter(p => {
+        if(drafted.has(p.id)) return false;
+        const lim = limits[p.pos];
+        if(!lim) return true;
+        if(posCounts[p.pos] >= lim.max) return false;
+        return true;
+      })
+      .sort((a,b) => b.rating - a.rating);
+
+    if(!available.length){
+      console.log('Auto-draft: keine Spieler verfügbar für', manager);
+      return;
+    }
+
+    const chosen = available[0];
+    state.squads[manager] = state.squads[manager] || [];
+    state.squads[manager].push(chosen.id);
+    state.draftPick = currentPick + 1;
+    if(state.draftPick >= order.length){
+      state.phase = 'active';
+      autoDraftEnabled = false;
+      _autoDraft = false;
+      window._autoDraft = false;
+    }
+    addFeedItem(manager, chosen.name, chosen.pos);
+    await saveToDB();
+    renderDraftView();
+
+    if(autoDraftEnabled && state.phase === 'draft'){
+      const nextManager = order[state.draftPick];
+      if(nextManager && nextManager !== myName){
+        runAutoDraft();
+      }
+    }
+  }, 800);
 }
 
 // ── PLAYER POOL ──────────────────────────────────────────────────
