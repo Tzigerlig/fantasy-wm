@@ -296,6 +296,47 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .pc-meta{font-size:11px;color:var(--muted);margin-bottom:6px;}
 .pc-pts{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--green2);line-height:1;}
 
+/* ── TEAM TAB (new) ───────────────────────────────────────────── */
+.team-header-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow-md);}
+.thc-top{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.thc-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--green3),var(--green2));display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;flex-shrink:0;}
+.thc-name{font-weight:700;font-size:16px;line-height:1.2;}
+.thc-rank{font-size:12px;color:var(--muted);margin-top:2px;}
+.thc-pts-box{margin-left:auto;text-align:right;}
+.thc-pts-val{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--green2);line-height:1;}
+.thc-pts-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.thc-gap{font-size:11px;color:#f87171;font-weight:600;margin-top:2px;}
+.team-mini-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;background:rgba(0,0,0,0.15);border-radius:8px;padding:10px;margin-bottom:12px;}
+.tms-item{text-align:center;}
+.tms-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--green);line-height:1;}
+.tms-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;}
+.team-pos-tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+.team-pos-tab{flex-shrink:0;padding:6px 12px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.15s;}
+.team-pos-tab.active,.team-pos-tab:hover{background:var(--green);border-color:var(--green);color:#fff;}
+.tpt-count{background:rgba(255,255,255,0.15);border-radius:10px;padding:1px 5px;font-size:10px;}
+.team-player-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
+.team-player-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;border-top:3px solid var(--green3);box-shadow:var(--shadow);transition:all 0.15s;cursor:pointer;}
+.team-player-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.team-player-card[data-pos="ST"]{border-top-color:#3b82f6;}
+.team-player-card[data-pos="LA"]{border-top-color:#f59e0b;}
+.team-player-card[data-pos="MI"]{border-top-color:#ec4899;}
+.team-player-card[data-pos="AN"]{border-top-color:#4ade80;}
+.tpc-top{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.tpc-flag{font-size:20px;line-height:1;}
+.tpc-pos-badge{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px;margin-left:auto;}
+.tpc-pos-badge.pos-ST{background:rgba(59,130,246,0.15);color:#3b82f6;}
+.tpc-pos-badge.pos-LA{background:rgba(245,158,11,0.15);color:#f59e0b;}
+.tpc-pos-badge.pos-MI{background:rgba(236,72,153,0.15);color:#ec4899;}
+.tpc-pos-badge.pos-AN{background:rgba(74,222,128,0.15);color:#4ade80;}
+.tpc-name{font-weight:700;font-size:12px;line-height:1.3;margin-bottom:2px;}
+.tpc-nation{font-size:10px;color:var(--muted);margin-bottom:8px;}
+.tpc-bottom{display:flex;align-items:baseline;gap:4px;}
+.tpc-pts{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green2);line-height:1;}
+.tpc-pts-lbl{font-size:10px;color:var(--muted);}
+.tpc-rating{margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--muted);}
+.tpc-trade-btn{width:100%;margin-top:8px;padding:4px 8px;font-size:10px;font-weight:700;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s;text-align:center;}
+.tpc-trade-btn:hover{border-color:var(--green);color:var(--green);background:rgba(74,222,128,0.05);}
+
 /* ── PITCH ────────────────────────────────────────────────────── */
 .pitch-wrap{background:linear-gradient(180deg,#1a7a40 0%,#145f32 100%);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;position:relative;box-shadow:var(--shadow-md);}
 .pitch-lines{position:absolute;inset:0;pointer-events:none;}
@@ -2840,32 +2881,82 @@ function renderMyTeam(){
   const sorted=[...state.managers].sort((a,b)=>getManagerPoints(b)-getManagerPoints(a));
   const rank=sorted.indexOf(myName)+1;
   const total=state.managers.length;
+  const leaderPts=sorted.length?getManagerPoints(sorted[0]):0;
+  const gap=rank>1?leaderPts-totalPts:0;
   const rankEmoji=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';
-  let html=`<div style="margin-bottom:10px;padding:10px 14px;border-radius:10px;background:${rank===1?'linear-gradient(90deg,rgba(212,160,23,0.12),rgba(212,160,23,0.04))':rank<=3?'linear-gradient(90deg,rgba(74,222,128,0.08),rgba(74,222,128,0.02))':'rgba(0,0,0,0.02)'};border:1px solid ${rank===1?'rgba(212,160,23,0.25)':rank<=3?'rgba(74,222,128,0.15)':'var(--border)'};display:flex;align-items:center;gap:10px">
-    <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:${rank===1?'#d4a017':rank<=3?'var(--green2)':'var(--muted)'}">${rankEmoji||('#'+rank)}</span>
-    <div><div style="font-weight:700;font-size:14px">Du bist auf Platz ${rank} von ${total}</div><div style="font-size:11px;color:var(--muted)">${totalPts} Punkte gesamt · ${squad.length} Spieler</div></div>
+  const initials=getInitials(myName);
+  const headerBg=rank===1?'linear-gradient(135deg,rgba(212,160,23,0.15),rgba(212,160,23,0.05))':rank<=3?'linear-gradient(135deg,rgba(74,222,128,0.1),rgba(74,222,128,0.03))':'var(--card)';
+  const headerBorder=rank===1?'rgba(212,160,23,0.35)':rank<=3?'rgba(74,222,128,0.2)':'var(--border)';
+  const cnts={ST:0,LA:0,MI:0,AN:0};
+  squad.forEach(p=>cnts[p.pos]=(cnts[p.pos]||0)+1);
+  let html=`<div class="team-header-card" style="background:${headerBg};border-color:${headerBorder}">
+    <div class="thc-top">
+      <div class="thc-avatar">${rankEmoji||initials}</div>
+      <div>
+        <div class="thc-name">${myName}</div>
+        <div class="thc-rank">Platz ${rank} von ${total} · ${squad.length} Spieler</div>
+      </div>
+      <div class="thc-pts-box">
+        <div class="thc-pts-val">${totalPts}</div>
+        <div class="thc-pts-lbl">Punkte</div>
+        ${gap>0?`<div class="thc-gap">−${gap} zum 1.</div>`:'<div style="font-size:10px;color:var(--green);font-weight:700">Tabellenführer</div>'}
+      </div>
+    </div>
+    <div class="team-mini-stats">
+      <div class="tms-item"><div class="tms-val">${squad.length}</div><div class="tms-lbl">Gesamt</div></div>
+      <div class="tms-item"><div class="tms-val">${cnts.ST||0}</div><div class="tms-lbl">TW</div></div>
+      <div class="tms-item"><div class="tms-val">${cnts.LA||0}</div><div class="tms-lbl">Abwehr</div></div>
+      <div class="tms-item"><div class="tms-val">${cnts.MI||0}</div><div class="tms-lbl">Mittelfeld</div></div>
+      <div class="tms-item"><div class="tms-val">${cnts.AN||0}</div><div class="tms-lbl">Angriff</div></div>
+    </div>
   </div>
-  <div class="stats-bar">
-    <div class="stat-box"><div class="stat-val">${squad.length}</div><div class="stat-lbl">Spieler</div></div>
-    <div class="stat-box"><div class="stat-val">${totalPts}</div><div class="stat-lbl">Punkte</div></div>
-    <div class="stat-box"><div class="stat-val">#${rank}</div><div class="stat-lbl">Rang</div></div>
-  </div>`;
-  [['ST','Torwart','#1e40af'],['LA','Abwehr','#854d0e'],['MI','Mittelfeld','#9d174d'],['AN','Angriff','#166534']].forEach(([pos,label,col])=>{
-    const grp=squad.filter(p=>p.pos===pos);if(!grp.length)return;
-    html+=`<div style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--green);margin:12px 0 6px;letter-spacing:0.5px">${label}</div><div class="team-grid">`;
-    grp.forEach(p=>{
-      const pts=getPlayerPoints(p.id);
-      html+=`<div class="player-card" style="border-left-color:${col};cursor:pointer" onclick="openPlayerModal(${p.id})">
-        <div class="pc-meta"><span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span> · ${p.nation}</div>
-        <div class="pc-name">${p.name}</div>
-        <div style="display:flex;align-items:baseline;gap:6px;margin-top:6px">
-          <div class="pc-pts">${pts}</div><div style="font-size:11px;color:var(--muted)">Pts</div>
-          <div style="margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--muted)">${p.rating}</div>
-        </div></div>`;
-    });
-    html+='</div>';
+  <div class="team-pos-tabs" id="team-pos-tabs">
+    <button class="team-pos-tab active" onclick="filterTeamPos('ALL',this)">ALLE <span class="tpt-count">${squad.length}</span></button>
+    <button class="team-pos-tab" onclick="filterTeamPos('ST',this)">TW <span class="tpt-count">${cnts.ST||0}</span></button>
+    <button class="team-pos-tab" onclick="filterTeamPos('LA',this)">Abwehr <span class="tpt-count">${cnts.LA||0}</span></button>
+    <button class="team-pos-tab" onclick="filterTeamPos('MI',this)">Mittelfeld <span class="tpt-count">${cnts.MI||0}</span></button>
+    <button class="team-pos-tab" onclick="filterTeamPos('AN',this)">Angriff <span class="tpt-count">${cnts.AN||0}</span></button>
+  </div>
+  <div class="team-player-grid" id="team-player-grid">`;
+  squad.forEach(p=>{
+    const pts=getPlayerPoints(p.id);
+    const flag=(p.nation||'').split(' ')[0]||'🌍';
+    html+=`<div class="team-player-card" data-pos="${p.pos}" onclick="openPlayerModal(${p.id})">
+      <div class="tpc-top">
+        <span class="tpc-flag">${flag}</span>
+        <span class="tpc-pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
+      </div>
+      <div class="tpc-name">${p.name}</div>
+      <div class="tpc-nation">${p.nation||''}</div>
+      <div class="tpc-bottom">
+        <span class="tpc-pts">${pts}</span>
+        <span class="tpc-pts-lbl">Pts</span>
+        <span class="tpc-rating">${p.rating}</span>
+      </div>
+      <div class="tpc-trade-btn" onclick="event.stopPropagation();quickTrade(${p.id})">⇄ Trade anbieten</div>
+    </div>`;
   });
+  html+='</div>';
   el.innerHTML=html;
+}
+
+function filterTeamPos(pos,btn){
+  document.querySelectorAll('.team-pos-tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.querySelectorAll('#team-player-grid .team-player-card').forEach(card=>{
+    card.style.display=(pos==='ALL'||card.dataset.pos===pos)?'':'none';
+  });
+}
+
+function quickTrade(playerId){
+  showView('trade',null);
+  setTimeout(()=>{
+    const sel=document.getElementById('trade-give-select');
+    if(sel){
+      sel.value=playerId;
+      sel.dispatchEvent(new Event('change'));
+    }
+  },200);
 }
 
 // ── AUFSTELLUNG ───────────────────────────────────────────────────
