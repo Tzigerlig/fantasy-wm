@@ -936,8 +936,11 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
           </div>
         </div>
         <div class="dr-topbar-right">
-          <div class="dr-status" id="dr-status">
-            <span class="dr-dot"></span> Wartet
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="dr-autodraft-btn" id="mock-draft-btn" onclick="toggleMockDraft()">🎭 Mock Draft</button>
+            <div class="dr-status" id="dr-status">
+              <span class="dr-dot"></span> Wartet
+            </div>
           </div>
         </div>
       </div>
@@ -1704,7 +1707,7 @@ function updateDraftHeader(){
     if(timerWrap)timerWrap.style.display='none';
     if(statusEl)statusEl.innerHTML='<span class="dr-dot" style="background:#f0c040"></span> Beendet';
     if(clockBar)clockBar.style.display='none';
-    if(nextBar)nextBar.innerHTML=`<button class="dr-autodraft-btn${mockDraftActive?' on':''}" id="mock-draft-btn" onclick="toggleMockDraft()">${mockDraftActive?'🎭 Mock beenden':'🎭 Mock Draft'}</button>`;
+    if(nextBar)nextBar.innerHTML='';
     stopPickTimer();
     return;
   }
@@ -1751,8 +1754,7 @@ function updateDraftHeader(){
     const autoDraftOn=window._autoDraft||false;
     nextBar.innerHTML=`<span class="dr-next-lbl">Als nächstes:</span>`+
       upcoming.map((m,i)=>`<div class="dr-next-chip${m===myName?' me':''}">${i===0?'→ ':''}${m}</div>`).join('')+
-      `<button class="dr-autodraft-btn${autoDraftOn&&!mockDraftActive?' on':''}" onclick="toggleAutoDraft(this)" ${mockDraftActive?'disabled style="opacity:0.4"':''}>⚡ Auto-Draft ${autoDraftOn&&!mockDraftActive?'AN':'AUS'}</button>`+
-      `<button class="dr-autodraft-btn${mockDraftActive?' on':''}" id="mock-draft-btn" onclick="toggleMockDraft()" style="margin-left:4px">${mockDraftActive?'🎭 Mock beenden':'🎭 Mock Draft'}</button>`;
+      `<button class="dr-autodraft-btn${autoDraftOn&&!mockDraftActive?' on':''}" onclick="toggleAutoDraft(this)" ${mockDraftActive?'disabled style="opacity:0.4"':''}>⚡ Auto-Draft ${autoDraftOn&&!mockDraftActive?'AN':'AUS'}</button>`;
   }
 }
 
@@ -1829,7 +1831,7 @@ async function toggleMockDraft(){
     mockDraftActive=false;
     mockDraftState=null;
     const btn=document.getElementById('mock-draft-btn');
-    if(btn){btn.textContent='🎭 Mock Draft';btn.classList.remove('active');}
+    if(btn){btn.textContent='🎭 Mock Draft';btn.classList.remove('on');}
     const banner=document.getElementById('mock-banner');
     if(banner)banner.style.display='none';
     renderDraftView();
@@ -1843,14 +1845,17 @@ async function toggleMockDraft(){
   mockDraftState.managers.forEach(m=>mockDraftState.squads[m]=[]);
 
   if(!mockDraftState.draftOrder||!mockDraftState.draftOrder.length){
-    const managers=mockDraftState.managers.length>=2
-      ?mockDraftState.managers
-      :[myName,'Demo1','Demo2','Demo3'];
+    // Build manager list: use existing + fill up to 4 with Demo managers
+    let managers=[...mockDraftState.managers];
+    if(!managers.includes(myName))managers.unshift(myName);
+    const demoNames=['Demo-Alex','Demo-Nico','Demo-Sara','Demo-Max'];
+    let demoIdx=0;
+    while(managers.length<4)managers.push(demoNames[demoIdx++]||('Demo'+(demoIdx)));
     mockDraftState.managers=managers;
     mockDraftState.squads={};
     managers.forEach(m=>mockDraftState.squads[m]=[]);
+    const size=14;
     const order=[];
-    const size=mockDraftState.squadSize||14;
     for(let r=0;r<size;r++){
       const round=r%2===1?[...managers].reverse():[...managers];
       order.push(...round);
@@ -1861,7 +1866,7 @@ async function toggleMockDraft(){
   mockDraftState.phase='draft';
 
   const btn=document.getElementById('mock-draft-btn');
-  if(btn){btn.textContent='🎭 Mock beenden';btn.classList.add('active');}
+  if(btn){btn.textContent='🎭 Mock beenden';btn.classList.add('on');}
   const banner=document.getElementById('mock-banner');
   if(banner)banner.style.display='flex';
 
