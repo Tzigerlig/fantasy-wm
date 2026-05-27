@@ -1001,12 +1001,14 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   <!-- LIVE -->
   <div class="view" id="view-live">
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchLiveTab('fixtures',this)">📅 Spiele</button>
-      <button class="tab-btn" onclick="switchLiveTab('stats',this)">📊 Spieler-Stats</button>
-      <button class="tab-btn" onclick="switchLiveTab('import',this)">⬇️ Importieren</button>
+      <button class="tab-btn active" onclick="switchLiveTab('fixtures',this)">📅 Heute</button>
+      <button class="tab-btn" onclick="switchLiveTab('stats',this)">👕 Meine Spieler</button>
+      <button class="tab-btn" onclick="switchLiveTab('ranking',this)">🏅 Live-Rangliste</button>
+      <button class="tab-btn" onclick="switchLiveTab('import',this)">⬇️ Import</button>
     </div>
     <div id="live-fixtures" class="live-tab"></div>
     <div id="live-stats" class="live-tab" style="display:none"></div>
+    <div id="live-ranking" class="live-tab" style="display:none"></div>
     <div id="live-import" class="live-tab" style="display:none"></div>
   </div>
 
@@ -2546,6 +2548,7 @@ function switchLiveTab(tab,btn){
   const el=document.getElementById('live-'+tab);if(el)el.style.display='block';
   if(tab==='fixtures'){renderLiveFixtures();startLivePolling();}
   else if(tab==='stats'){renderLiveStats();startLivePolling();}
+  else if(tab==='ranking'){renderLiveRangliste();startLivePolling();}
   else{renderImport();stopLivePolling();}
 }
 
@@ -2554,7 +2557,38 @@ function startLivePolling(){
   _livePolling=setInterval(()=>{
     if(liveTab==='fixtures')renderLiveFixtures();
     else if(liveTab==='stats')renderLiveStats();
+    else if(liveTab==='ranking')renderLiveRangliste();
   },60000);
+}
+
+function renderLiveRangliste(){
+  const el=document.getElementById('live-ranking');if(!el)return;
+  const allEvts=Object.values(_liveData.events).flat();
+  const managers=state.managers||[];
+  if(!managers.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🏅</div><div class="empty-title">Noch keine Manager</div></div>';return;}
+  const rows=managers.map(m=>({
+    m,
+    total:getManagerPoints(m),
+    lpts:(state.squads[m]||[]).reduce((s,id)=>s+calcLivePoints(id,allEvts),0)
+  })).sort((a,b)=>(b.total+b.lpts)-(a.total+a.lpts));
+  const isPolling=!!_livePolling;
+  const lastUpd=_liveLastUpdate?new Date(_liveLastUpdate).toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'}):'–';
+  el.innerHTML=`<div class="live-refresh-bar">
+    <div style="display:flex;align-items:center;gap:6px"><div class="live-refresh-dot${isPolling?' polling':''}"></div>
+    <span>${isPolling?'Live · alle 60s':'Manuell'}</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px">Update: ${lastUpd}</span>
+    <button class="btn btn-outline btn-sm" onclick="triggerLiveRefresh()">⟳ Jetzt</button></div>
+  </div>
+  <div class="card"><div class="card-title">🏅 Live-Rangliste</div>
+    ${rows.map((x,i)=>`<div class="live-mini-rank">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:18px;width:28px">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
+      <span style="flex:1;font-weight:${x.m===myName?700:500}">${x.m}</span>
+      <div style="text-align:right">
+        <span class="pts-pill">${x.total+x.lpts}</span>
+        ${x.lpts>0?`<div style="font-size:10px;color:#166534;margin-top:2px">+${x.lpts} live</div>`:''}
+      </div>
+    </div>`).join('')}
+  </div>`;
 }
 function stopLivePolling(){if(_livePolling){clearInterval(_livePolling);_livePolling=null;}}
 
@@ -2631,19 +2665,6 @@ function renderLiveFixtures(){
           ${myPl.length?`<span style="margin-left:8px;font-size:11px;color:var(--green2)">👕 ${myPl.length} Spieler</span>`:''}
         </div></div>`;
     });
-  }
-  if(state.managers.length>1&&allEvts.length){
-    html+=`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--green);margin:12px 0 8px">🏅 Live-Rangliste</div><div class="card">`;
-    state.managers.map(m=>({m,lpts:( state.squads[m]||[]).reduce((s,id)=>s+calcLivePoints(id,allEvts),0)}))
-      .sort((a,b)=>b.lpts-a.lpts)
-      .forEach((x,i)=>{
-        html+=`<div class="live-mini-rank">
-          <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--muted);width:24px">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
-          <span style="flex:1;font-weight:${x.m===myName?700:500}">${x.m}</span>
-          <span class="live-pts-change">${x.lpts>0?'+'+x.lpts:x.lpts} pts</span>
-        </div>`;
-      });
-    html+='</div>';
   }
   el.innerHTML=html;
   _liveLastUpdate=Date.now();
