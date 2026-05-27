@@ -306,6 +306,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .lock-badge.locked{background:var(--redbg);color:var(--red);border:1px solid #fca5a5;}
 .lock-badge.unlocked{background:#f0fdf4;color:#166534;border:1px solid #86efac;}
 .formation-select{padding:7px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'DM Sans',sans-serif;background:#fff;font-weight:600;}
+.formation-pill{padding:5px 10px;border:1.5px solid var(--border);border-radius:20px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;background:#fff;cursor:pointer;transition:all 0.15s;color:var(--muted);}
+.formation-pill.active,.formation-pill:hover{background:var(--green);border-color:var(--green);color:#fff;}
 .swap-hint{font-size:11px;color:var(--muted);text-align:center;padding:6px 0 8px;}
 .lineup-list{display:flex;flex-direction:column;gap:5px;}
 .lineup-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:grab;transition:all 0.1s;}
@@ -372,7 +374,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 
 /* ── POINTS TABLE ─────────────────────────────────────────────── */
 .pts-table{width:100%;border-collapse:collapse;}
-.pts-table th{text-align:left;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:8px;border-bottom:2px solid var(--border);}
+.pts-table th{text-align:left;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:8px;border-bottom:2px solid var(--border);position:sticky;top:0;background:#fff;z-index:1;}
 .pts-table td{padding:7px 8px;border-bottom:1px solid #f3f4f6;font-size:13px;}
 .pts-table tr:hover td{background:#f9fafb;}
 .pts-table input{width:48px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;text-align:center;transition:border-color 0.15s;}
@@ -2489,12 +2491,20 @@ function renderMyTeam(){
   if(!el)return;
   const squad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
   if(!squad.length){
-    el.innerHTML='<div class="empty-state"><div class="empty-icon">👕</div><div class="empty-title">Noch kein Team</div><p>Warte auf den Draft!</p></div>';
+    const inDraft=state.phase==='draft';
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">👕</div><div class="empty-title">Noch kein Team</div><p style="color:var(--muted);font-size:13px;margin:8px 0 16px">${inDraft?'Du hast noch keine Spieler gedraftet.':'Der Draft hat noch nicht begonnen.'}</p>${inDraft?'<button class="btn btn-primary btn-sm" onclick="showView(\'draft\',null)">🎯 Zum Draft</button>':''}</div>`;
     return;
   }
   const totalPts=getManagerPoints(myName);
-  const rank=[...state.managers].sort((a,b)=>getManagerPoints(b)-getManagerPoints(a)).indexOf(myName)+1;
-  let html=`<div class="stats-bar">
+  const sorted=[...state.managers].sort((a,b)=>getManagerPoints(b)-getManagerPoints(a));
+  const rank=sorted.indexOf(myName)+1;
+  const total=state.managers.length;
+  const rankEmoji=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';
+  let html=`<div style="margin-bottom:10px;padding:10px 14px;border-radius:10px;background:${rank===1?'linear-gradient(90deg,rgba(212,160,23,0.12),rgba(212,160,23,0.04))':rank<=3?'linear-gradient(90deg,rgba(74,222,128,0.08),rgba(74,222,128,0.02))':'rgba(0,0,0,0.02)'};border:1px solid ${rank===1?'rgba(212,160,23,0.25)':rank<=3?'rgba(74,222,128,0.15)':'var(--border)'};display:flex;align-items:center;gap:10px">
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:${rank===1?'#d4a017':rank<=3?'var(--green2)':'var(--muted)'}">${rankEmoji||('#'+rank)}</span>
+    <div><div style="font-weight:700;font-size:14px">Du bist auf Platz ${rank} von ${total}</div><div style="font-size:11px;color:var(--muted)">${totalPts} Punkte gesamt · ${squad.length} Spieler</div></div>
+  </div>
+  <div class="stats-bar">
     <div class="stat-box"><div class="stat-val">${squad.length}</div><div class="stat-lbl">Spieler</div></div>
     <div class="stat-box"><div class="stat-val">${totalPts}</div><div class="stat-lbl">Punkte</div></div>
     <div class="stat-box"><div class="stat-val">#${rank}</div><div class="stat-lbl">Rang</div></div>
@@ -2550,7 +2560,7 @@ function renderAufstellung(){
         ${isSel?'<circle cx="20" cy="20" r="18" fill="none" stroke="#f0c040" stroke-width="2" stroke-dasharray="4 2"/>':''}
       </svg>
       <div class="shirt-pos-badge">${POS_LABEL[p.pos]}</div>
-      <div class="shirt-name">${p.name.split(' ').pop()}</div>
+      <div class="shirt-name">${p.name.split(' ').slice(-2).join(' ').slice(0,12)}</div>
       <div class="shirt-pts">${pts>0?pts+'pts':p.rating}</div>
     </div>`;
   };
@@ -2560,11 +2570,12 @@ function renderAufstellung(){
   const fwds=squad.filter(p=>p.pos==='AN'&&starters.includes(p.id)).slice(0,fd.AN);
   const bench=squad.filter(p=>!starters.includes(p.id));
   let html=`<div class="pitch-actions">
-    <select class="formation-select" onchange="aufChangeFormation(this.value)">
-      ${Object.keys(FORMATIONS).map(f=>`<option value="${f}"${f===formation?' selected':''}>${f}</option>`).join('')}
-    </select>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">
+      ${Object.keys(FORMATIONS).map(f=>`<button class="formation-pill${f===formation?' active':''}" onclick="aufChangeFormation('${f}')">${f}</button>`).join('')}
+    </div>
     <button class="btn btn-primary btn-sm" onclick="saveLineup('${formation}')">💾 Speichern</button>
   </div>
+  <div id="lineup-error" style="display:none;color:#dc2626;font-size:12px;font-weight:600;padding:6px 12px;background:#fef2f2;border-radius:6px;margin-bottom:8px;border:1px solid #fecaca"></div>
   ${aufSwapFrom!==null?'<div class="swap-hint">Klicke auf einen anderen Spieler zum Tauschen — nochmal klicken zum Abbrechen</div>':''}
   <div class="pitch-wrap">
     <svg class="pitch-lines" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
@@ -2579,7 +2590,7 @@ function renderAufstellung(){
     <div class="pitch-divider"></div>
     <div class="pitch-label">Abwehr</div><div class="pitch-row">${defs.map(shirt).join('')}</div>
     <div class="pitch-label">Tor</div><div class="pitch-row row-gk">${gk?shirt(gk):''}</div>
-    <div class="pitch-row row-bank"><div class="bench-label">BANK</div>${bench.map(shirt).join('')}</div>
+    <div class="pitch-row row-bank"><div class="bench-label">BANK (zählt nicht)</div>${bench.map(shirt).join('')}</div>
   </div>`;
   el.innerHTML=html;
 }
@@ -2606,6 +2617,12 @@ async function saveLineup(formation){
   const squad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
   const cur=state.lineups[myName]||{};
   const starters=cur.starters?.length===11?cur.starters:autoSuggestLineup(squad,formation);
+  const errEl=document.getElementById('lineup-error');
+  if(starters.length<11){
+    if(errEl){errEl.textContent='⚠️ Aufstellung unvollständig — '+starters.length+' von 11 Spielern ausgewählt. Mehr Spieler im Draft holen!';errEl.style.display='block';}
+    return;
+  }
+  if(errEl)errEl.style.display='none';
   state.lineups[myName]={formation,starters};
   await saveToDB();toast('Aufstellung gespeichert ✅');
 }
@@ -2629,11 +2646,13 @@ function renderRangliste(){
   }
   const tbody=document.getElementById('rank-tbody');
   if(tbody){
+    const leaderPts=sorted.length?getManagerPoints(sorted[0]):0;
     tbody.innerHTML=sorted.length?sorted.map((m,i)=>{
       const pts=getManagerPoints(m);
       const cl=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
       const medal=['🥇','🥈','🥉'][i]||'#'+(i+1);
       const safe=m.replace(/\W/g,'_');
+      const diff=i===0?'':`<span style="font-size:10px;color:#f87171;font-weight:600">−${leaderPts-pts}</span>`;
       return `<tr class="${cl}" style="cursor:pointer" onclick="toggleManagerDetails('${m.replace(/'/g,"\\'")}')">
         <td class="rank-num">${medal}</td>
         <td><div style="display:flex;align-items:center;gap:8px">
@@ -2641,7 +2660,7 @@ function renderRangliste(){
           <span style="font-weight:${m===myName?700:500}">${m}${m===myName?' <span style="font-size:10px;color:var(--green3)">(Du)</span>':''}</span>
         </div></td>
         <td style="color:var(--muted)">${(state.squads[m]||[]).length}</td>
-        <td class="rank-pts">${pts} <span style="font-size:10px;color:var(--muted)">▾</span></td></tr>
+        <td class="rank-pts"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">${pts}<div style="display:flex;align-items:center;gap:4px">${diff}<span style="font-size:10px;color:var(--muted)">▾</span></div></div></td></tr>
       <tr id="mgr-detail-${safe}" style="display:none"><td colspan="4" style="padding:4px 8px 10px;background:#f9fafb;border-bottom:1px solid var(--border)">${renderManagerDetails(m)}</td></tr>`;
     }).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Noch keine Manager</td></tr>';
   }
@@ -2702,13 +2721,14 @@ function renderPtsTable(){
   players.sort((a,b)=>a.pos.localeCompare(b.pos)||b.rating-a.rating);
   if(!players.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:16px 0">Erst Draft abschliessen!</div>';return;}
   const owner=(id)=>Object.entries(state.squads||{}).find(([,sq])=>sq.includes(id))?.[0]||'?';
-  el.innerHTML=`<table class="pts-table"><thead><tr><th>Spieler</th><th>Pos</th><th>Manager</th><th>Punkte</th></tr></thead><tbody>
-    ${players.map(p=>`<tr>
+  const totalAllPts=players.reduce((s,p)=>s+getPlayerPoints(p.id),0);
+  el.innerHTML=`<div style="overflow:auto;max-height:400px"><table class="pts-table"><thead><tr><th>Spieler</th><th>Pos</th><th>Manager</th><th>Punkte</th></tr></thead><tbody>
+    ${players.map(p=>{const savedPts=getPlayerPoints(p.id);return`<tr>
       <td><div style="font-weight:600">${p.name}</div><div style="font-size:11px;color:var(--muted)">${p.nation}</div></td>
       <td><span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span></td>
       <td style="font-size:12px;color:var(--muted)">${owner(p.id)}</td>
-      <td><input type="number" class="pts-input" data-pid="${p.id}" placeholder="0" min="-10" max="30" style="width:60px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:center"></td>
-    </tr>`).join('')}</tbody></table>`;
+      <td><input type="number" class="pts-input" data-pid="${p.id}" placeholder="0" min="-10" max="30" style="width:60px;padding:4px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;text-align:center">${savedPts?`<span style="font-size:10px;color:var(--muted);margin-left:4px">(${savedPts})</span>`:''}</td>
+    </tr>`}).join('')}</tbody><tfoot><tr style="border-top:2px solid var(--border)"><td colspan="3" style="padding:8px;font-weight:700;font-size:12px;color:var(--muted)">Gesamt vergeben</td><td style="padding:8px;font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--green2)">${totalAllPts} Punkte</td></tr></tfoot></table></div>`;
 }
 
 async function savePoints(){
@@ -2809,6 +2829,8 @@ function renderTradeOffer(){
   const el=document.getElementById('trade-offer-tab');if(!el)return;
   const others=state.managers.filter(m=>m!==myName);
   if(!others.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🤝</div><div class="empty-title">Keine anderen Manager</div></div>';return;}
+  const mySquadRaw=(state.squads[myName]||[]);
+  if(!mySquadRaw.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">👕</div><div class="empty-title">Noch kein Team</div><p style="color:var(--muted);font-size:13px;margin:8px 0 16px">Du musst erst Spieler im Draft holen, bevor du Trades anbieten kannst.</p><button class="btn btn-primary btn-sm" onclick="showView(\'draft\',null)">🎯 Zum Draft</button></div>';return;}
   if(!tradeTargetManager||!others.includes(tradeTargetManager))tradeTargetManager=others[0];
   const sortSq=(m)=>(state.squads[m]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean).sort((a,b)=>a.pos.localeCompare(b.pos)||b.rating-a.rating);
   const myPlayers=sortSq(myName),theirPlayers=sortSq(tradeTargetManager);
@@ -2893,12 +2915,15 @@ function renderTradeHistory(){
   if(!hist.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-title">Keine Historie</div></div>';return;}
   el.innerHTML=hist.map(o=>{
     const isFrom=o.from===myName;
+    const resolvedDate=o.resolvedAt?new Date(o.resolvedAt):new Date(o.ts);
+    const dateStr=resolvedDate.toLocaleDateString('de',{day:'2-digit',month:'short',year:'numeric'})+' · '+resolvedDate.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})+' Uhr';
     return `<div class="trade-offer-card ${o.status}">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px">
         <span style="font-size:13px"><strong>${isFrom?'Du':o.from}</strong> → <strong>${isFrom?o.to:'Du'}</strong></span>
         <span class="trade-status-badge status-${o.status}">${o.status==='accepted'?'✅ Angenommen':'❌ Abgelehnt'}</span>
       </div>
-      <div style="font-size:12px;color:var(--muted)">${isFrom?'Du gabst':'Du bekamst'}: ${(isFrom?o.give:o.receive).map(id=>PLAYERS.find(p=>p.id===id)?.name||'?').join(', ')}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${isFrom?'Du gabst':'Du bekamst'}: ${(isFrom?o.give:o.receive).map(id=>PLAYERS.find(p=>p.id===id)?.name||'?').join(', ')}</div>
+      <div style="font-size:11px;color:var(--muted)">${dateStr}</div>
     </div>`;
   }).join('');
 }
@@ -3046,7 +3071,8 @@ function renderLiveFixtures(){
     <span>${isPolling?'Live · alle 60s':'Manuell'}</span></div>
     <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px">Letztes Update: ${lastUpd}</span>
     <button class="btn btn-outline btn-sm" onclick="triggerLiveRefresh()">⟳ Jetzt</button></div>
-  </div>`;
+  </div>`+
+  (!apiKey?'<div style="margin-bottom:8px;padding:8px 12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:8px;font-size:11px;color:#b45309;display:flex;align-items:center;justify-content:space-between;gap:8px"><span>⚠️ Kein API-Key — Scores werden nicht live geladen.</span><button class="btn btn-outline btn-sm" style="font-size:10px;padding:3px 8px" onclick="switchLiveTab(\'import\',document.querySelectorAll(\'#view-live .tab-btn\')[3])">API-Key hinzufügen</button></div>':'');
   if(todayFx.length){
     html+=`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--green);margin-bottom:8px">🔴 Heute</div>`;
     todayFx.forEach(f=>{
@@ -3151,7 +3177,13 @@ function renderImport(){
     ${apiKey
       ?`<button class="btn btn-primary" onclick="autoImportLivePoints()">💾 Live-Punkte speichern</button>
          <button class="btn btn-outline" style="margin-left:8px" onclick="triggerLiveRefresh()">⟳ Daten laden</button>`
-      :'<div class="warn-box">API-Key im Admin Panel eingeben (5× Logo tippen).</div>'}
+      :`<div class="warn-box" style="margin-bottom:12px">Kein API-Key hinterlegt. Live-Daten kommen von <strong>api-football.com</strong> (kostenlos bis 100 Anfragen/Tag).<br><br>
+        <strong>So geht's:</strong><br>
+        1. Konto bei <em>rapidapi.com/api-sports/api/api-football</em> erstellen<br>
+        2. Kostenlosen Plan wählen → API-Key kopieren<br>
+        3. Admin Panel öffnen (URL: <code>?admin=admin2026</code>) → Tab "Settings" → Key eintragen
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="openAdmin()">⚙️ Admin Panel öffnen</button>`}
     <div id="import-result" style="margin-top:10px"></div>
   </div>
   <div class="card" style="margin-top:10px"><div class="card-title">📝 CSV Import</div>
