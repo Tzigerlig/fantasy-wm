@@ -327,6 +327,16 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .trade-side h4{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
 .trade-player-chip2{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#f9fafb;border-radius:6px;margin-bottom:3px;font-size:12px;border:1px solid var(--border);}
 .trade-arrow-big{font-size:22px;color:var(--muted);text-align:center;}
+.trade-analysis{border-radius:10px;padding:12px 14px;margin-top:10px;border:1.5px solid transparent;display:flex;align-items:center;gap:10px;}
+.trade-analysis.fair{background:#f0fdf4;border-color:#86efac;color:#166534;}
+.trade-analysis.warn{background:#fffbeb;border-color:#fcd34d;color:#92400e;}
+.trade-analysis.bad{background:#fef2f2;border-color:#fca5a5;color:#991b1b;}
+.ta-icon{font-size:20px;flex-shrink:0;}
+.ta-body{flex:1;}
+.ta-verdict{font-weight:700;font-size:13px;}
+.ta-values{font-size:11px;margin-top:3px;opacity:0.8;display:flex;gap:12px;}
+.ta-bar{height:6px;border-radius:3px;background:#e5e7eb;margin-top:6px;overflow:hidden;}
+.ta-bar-fill{height:100%;border-radius:3px;transition:width 0.4s;}
 .notification-dot{background:#c62828;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;display:inline-block;margin-left:4px;animation:pulse 2s infinite;}
 
 /* ── LIVE / FIXTURES ──────────────────────────────────────────── */
@@ -2335,6 +2345,41 @@ function switchTradeTab(tab,btn){
 
 function renderTradeView(){renderTradeOffer();updateTradeBadge();}
 
+function calcTradeValue(playerIds){
+  return playerIds.reduce((sum,id)=>{
+    const p=PLAYERS.find(x=>x.id===id);
+    if(!p)return sum;
+    return sum+p.rating*0.4+getPlayerPoints(id)*0.6;
+  },0);
+}
+
+function renderTradeAnalysis(fromIds,toIds,fromManager,toManager){
+  if(!fromIds.length||!toIds.length)return'';
+  const fv=calcTradeValue(fromIds),tv=calcTradeValue(toIds);
+  const diff=fv-tv;
+  const absDiff=Math.abs(diff);
+  let cls,icon,verdict;
+  if(diff>20){cls='bad';icon='⚠️';verdict=`Ungünstig für ${fromManager} (−${diff.toFixed(1)} Punkte)`;}
+  else if(diff<-20){cls='bad';icon='⚠️';verdict=`Ungünstig für ${toManager} (−${absDiff.toFixed(1)} Punkte)`;}
+  else if(absDiff>8){cls='warn';icon='⚖️';verdict=`Leicht ungleich (Δ${absDiff.toFixed(1)})`;}
+  else{cls='fair';icon='✅';verdict='Fairer Trade';}
+  const total=fv+tv||1;
+  const fromPct=Math.round(fv/total*100);
+  const toPct=100-fromPct;
+  const barColor=cls==='fair'?'#4ade80':cls==='warn'?'#fbbf24':'#f87171';
+  return `<div class="trade-analysis ${cls}">
+    <div class="ta-icon">${icon}</div>
+    <div class="ta-body">
+      <div class="ta-verdict">${verdict}</div>
+      <div class="ta-values">
+        <span>${fromManager}: <strong>${fv.toFixed(1)}</strong></span>
+        <span>${toManager}: <strong>${tv.toFixed(1)}</strong></span>
+      </div>
+      <div class="ta-bar"><div class="ta-bar-fill" style="width:${fromPct}%;background:${barColor}"></div></div>
+    </div>
+  </div>`;
+}
+
 function renderTradeOffer(){
   const el=document.getElementById('trade-offer-tab');if(!el)return;
   const others=state.managers.filter(m=>m!==myName);
@@ -2356,6 +2401,7 @@ function renderTradeOffer(){
       <div class="trade-select-box"><h4>Meine Spieler (gebe ab)</h4>${myPlayers.map(p=>chip(p,'my')).join('')}</div>
       <div class="trade-select-box"><h4>${tradeTargetManager}'s Spieler (bekomme)</h4>${theirPlayers.map(p=>chip(p,'their')).join('')}</div>
     </div>
+    ${(tradeMySelected.length||tradeTheirSelected.length)?renderTradeAnalysis(tradeMySelected,tradeTheirSelected,myName,tradeTargetManager):''}
     ${tradeMySelected.length&&tradeTheirSelected.length?`
     <div style="background:#f0fdf4;border-radius:8px;padding:10px;margin:10px 0">
       <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Trade-Vorschau</div>
@@ -2393,7 +2439,8 @@ function renderTradeInbox(){
       <strong>${o.from}</strong> gibt: ${o.give.map(id=>PLAYERS.find(p=>p.id===id)?.name||'?').join(', ')}<br>
       <strong>Du</strong> gibst: ${o.receive.map(id=>PLAYERS.find(p=>p.id===id)?.name||'?').join(', ')}
     </div>
-    <div style="display:flex;gap:8px">
+    ${renderTradeAnalysis(o.give,o.receive,o.from,o.to)}
+    <div style="display:flex;gap:8px;margin-top:10px">
       <button class="btn btn-primary btn-sm" onclick="acceptTrade(${o.id})">✅ Annehmen</button>
       <button class="btn btn-red btn-sm" onclick="rejectTrade(${o.id})">❌ Ablehnen</button>
     </div></div>`).join('');
