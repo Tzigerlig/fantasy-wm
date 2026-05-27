@@ -454,6 +454,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .name-box h2{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--green);margin-bottom:6px;}
 .name-box p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
 .name-box .emoji{font-size:48px;margin-bottom:12px;}
+.name-box label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;text-align:left;}
+.name-box input[type="password"]{letter-spacing:4px;font-size:18px;text-align:center;}
 
 /* ── TOAST ────────────────────────────────────────────────────── */
 .toast{
@@ -823,11 +825,17 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 
 <div id="name-entry" class="name-entry" style="display:none">
   <div class="name-box">
-    <h2>🏆 Willkommen!</h2>
-    <p>Wie heisst du? Wird für alle sichtbar.</p>
+    <div class="emoji">🏆</div>
+    <h2>Neuer Spieler</h2>
+    <p>Erstelle deinen Account für die Liga</p>
     <label>Dein Name</label>
-    <input type="text" id="name-input" placeholder="z.B. Nico" maxlength="20" style="margin-bottom:12px">
-    <button class="btn btn-primary" style="width:100%" onclick="setMyName()">Loslegen →</button>
+    <input type="text" id="name-input" placeholder="z.B. Thomas" maxlength="20" style="margin-bottom:8px">
+    <label>PIN wählen (4 Ziffern)</label>
+    <input type="password" id="pin-input" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:8px">
+    <label>PIN bestätigen</label>
+    <input type="password" id="pin-confirm" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')registerPlayer()">
+    <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="registerPlayer()">Registrieren →</button>
+    <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="renderNameEntry('login')">Schon registriert? Einloggen</p>
   </div>
 </div>
 
@@ -1097,7 +1105,7 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 // ── SUPABASE DB ──────────────────────────────────────────────────
 function getDefaultState(){
   return{phase:'setup',managers:[],squads:{},draftOrder:[],draftPick:0,draftType:'snake',
-    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},
+    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},
     scoring:{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3,pens:5}};
 }
 
@@ -1290,6 +1298,108 @@ async function setMyName(){
     const nameEntry=document.getElementById('name-entry');
     if(nameEntry)nameEntry.style.display='none';
   }
+}
+
+function getDeviceId(){
+  let id=localStorage.getItem('fwm_device_id');
+  if(!id){id=Math.random().toString(36).substring(2);localStorage.setItem('fwm_device_id',id);}
+  return id;
+}
+
+function renderNameEntry(mode){
+  const box=document.querySelector('.name-box');
+  if(!box)return;
+  if(mode==='login'){
+    box.innerHTML=`
+      <div class="emoji">👋</div>
+      <h2>Willkommen zurück!</h2>
+      <p>Gib deinen Namen und PIN ein</p>
+      <label>Dein Name</label>
+      <input type="text" id="login-name-input" placeholder="z.B. Thomas" style="margin-bottom:8px">
+      <label>PIN (4 Ziffern)</label>
+      <input type="password" id="login-pin-input" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')loginPlayer()">
+      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="loginPlayer()">Einloggen →</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="renderNameEntry('register')">Neu hier? Registrieren</p>
+    `;
+  } else {
+    box.innerHTML=`
+      <div class="emoji">🏆</div>
+      <h2>Neuer Spieler</h2>
+      <p>Erstelle deinen Account für die Liga</p>
+      <label>Dein Name</label>
+      <input type="text" id="name-input" placeholder="z.B. Thomas" style="margin-bottom:8px">
+      <label>PIN wählen (4 Ziffern)</label>
+      <input type="password" id="pin-input" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:8px">
+      <label>PIN bestätigen</label>
+      <input type="password" id="pin-confirm" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')registerPlayer()">
+      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="registerPlayer()">Registrieren →</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="renderNameEntry('login')">Schon registriert? Einloggen</p>
+    `;
+  }
+}
+
+async function registerPlayer(){
+  const name=(document.getElementById('name-input')||{}).value?.trim()||'';
+  const pin=(document.getElementById('pin-input')||{}).value?.trim()||'';
+  const pinConfirm=(document.getElementById('pin-confirm')||{}).value?.trim()||'';
+  if(!name){toast('Bitte Namen eingeben!');return;}
+  if(pin.length!==4||!/^\d{4}$/.test(pin)){toast('PIN muss 4 Ziffern sein!');return;}
+  if(pin!==pinConfirm){toast('PINs stimmen nicht überein!');return;}
+  if(state.players&&state.players[name]){
+    toast('Name bereits vergeben! Bitte einloggen.');
+    renderNameEntry('login');
+    return;
+  }
+  if(!state.players)state.players={};
+  state.players[name]={pin,joinedAt:new Date().toISOString(),deviceId:getDeviceId()};
+  if(!state.managers.includes(name)){
+    state.managers.push(name);
+    if(!state.squads[name])state.squads[name]=[];
+  }
+  await saveToDB();
+  myName=name;
+  localStorage.setItem('fwm_myname',myName);
+  localStorage.setItem('fwm_pin',pin);
+  completeLogin();
+  toast('Willkommen, '+name+'! 🎉');
+}
+
+async function loginPlayer(){
+  const name=(document.getElementById('login-name-input')||{}).value?.trim()||'';
+  const pin=(document.getElementById('login-pin-input')||{}).value?.trim()||'';
+  if(!name||!pin){toast('Bitte alle Felder ausfüllen!');return;}
+  if(!state.players||!state.players[name]){
+    toast('Name nicht gefunden. Bitte registrieren.');
+    renderNameEntry('register');
+    return;
+  }
+  if(state.players[name].pin!==pin){
+    toast('Falscher PIN! ❌');
+    const pinEl=document.getElementById('login-pin-input');
+    if(pinEl)pinEl.value='';
+    return;
+  }
+  myName=name;
+  localStorage.setItem('fwm_myname',myName);
+  localStorage.setItem('fwm_pin',pin);
+  completeLogin();
+  toast('Willkommen zurück, '+name+'! 👋');
+}
+
+function completeLogin(){
+  document.getElementById('name-entry').style.display='none';
+  const app=document.getElementById('app');
+  if(app){app.style.display='flex';app.style.flexDirection='column';}
+  const ud=document.getElementById('user-display');
+  if(ud)ud.textContent='👤 '+myName;
+  const sl=document.getElementById('share-link');
+  if(sl)sl.value=window.location.origin+window.location.pathname;
+  renderSetup();
+  updatePhaseBadge();
+  renderCountdown();
+  setInterval(renderCountdown,1000);
+  startAutoSync();
+  requestNotificationPermission();
 }
 
 let rulesVisible=window.innerWidth>640;
@@ -2312,6 +2422,16 @@ function renderAdminContent(){
         </div>
         <div id="adm-api-key-status" style="font-size:12px;color:#9de0b8">${apiKey?'<span style="color:#4ade80">✓ Key aktiv</span>':''}</div>
       </div>
+      <div class="admin-card"><h3>👤 Spieler-Accounts (${Object.keys(state.players||{}).length})</h3>
+        ${Object.keys(state.players||{}).length?Object.entries(state.players||{}).map(([name,data])=>`
+          <div class="admin-manager-row" style="flex-wrap:wrap;gap:4px">
+            <div class="avatar" style="background:#1a3a4a;color:#60a5fa;font-size:11px;width:28px;height:28px;min-width:28px">${getInitials(name)}</div>
+            <div class="name" style="flex:1">${name}${name===myName?' <span style="font-size:10px;color:#4ade80">(Du)</span>':''}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.35)">${data.joinedAt?new Date(data.joinedAt).toLocaleDateString('de',{day:'2-digit',month:'short',year:'numeric'}):''}</div>
+            <button class="btn-admin-action" style="font-size:10px;padding:3px 8px" onclick="admResetPin('${name.replace(/'/g,"\\'")}')">🔑 PIN reset</button>
+          </div>`).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:8px">Noch keine Registrierungen</div>'}
+        <p style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px">PIN reset setzt PIN auf 0000. Spieler kann danach neuen PIN wählen.</p>
+      </div>
       <div class="admin-card"><h3>⚠️ Danger Zone</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-admin-danger" onclick="admResetDraft()">↺ Nur Draft zurücksetzen</button>
@@ -2454,6 +2574,15 @@ async function admClearManagers(){
 
 async function admSetPhase(phase){
   state.phase=phase;await saveToDB();updatePhaseBadge();toast('Phase: '+phase);admRefresh();
+}
+
+async function admResetPin(name){
+  if(!state.players||!state.players[name])return;
+  if(!confirm('PIN von '+name+' auf 0000 zurücksetzen?'))return;
+  state.players[name].pin='0000';
+  await saveToDB();
+  toast('PIN von '+name+' auf 0000 gesetzt 🔑');
+  renderAdminContent();
 }
 
 function admSaveApiKey(){
@@ -3350,32 +3479,43 @@ async function init(){
     document.getElementById('app').style.flexDirection='column';
     if(!myName){
       document.getElementById('name-entry').style.display='flex';
+      renderNameEntry(state.managers&&state.managers.length>0?'login':'register');
     } else {
       const ud=document.getElementById('user-display');if(ud)ud.textContent='👤 '+myName;
     }
-    renderSetup();
-    updatePhaseBadge();
-    openAdmin();
+    renderSetup();updatePhaseBadge();openAdmin();
     return;
   }
   await loadFromDB();
-  if(!myName){
-    document.getElementById('loading-overlay').style.display='none';
-    document.getElementById('name-entry').style.display='flex';
-    return;
-  }
-  if(!state.managers.includes(myName)){
-    state.managers.push(myName);
-    if(!state.squads[myName])state.squads[myName]=[];
-    await saveToDB();
-  }
   document.getElementById('loading-overlay').style.display='none';
-  document.getElementById('app').style.display='flex';
-  const ud=document.getElementById('user-display');if(ud)ud.textContent='👤 '+myName;
-  updatePhaseBadge();renderSetup();startAutoSync();
-  setInterval(renderCountdown,1000);
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+  const savedName=localStorage.getItem('fwm_myname');
+  const savedPin=localStorage.getItem('fwm_pin');
+
+  if(savedName&&savedPin&&state.players&&state.players[savedName]){
+    if(state.players[savedName].pin===savedPin){
+      // Valid PIN — auto-login
+      myName=savedName;
+      completeLogin();
+    } else {
+      // PIN mismatch — force re-login
+      localStorage.removeItem('fwm_myname');
+      localStorage.removeItem('fwm_pin');
+      document.getElementById('name-entry').style.display='flex';
+      renderNameEntry('login');
+    }
+  } else if(savedName&&state.players&&!state.players[savedName]&&Object.keys(state.players).length===0){
+    // Old app without PIN system — accept stored name as-is
+    myName=savedName;
+    completeLogin();
+  } else if(savedName&&!state.players){
+    // No PIN system in state yet — backward compat
+    myName=savedName;
+    completeLogin();
+  } else {
+    document.getElementById('name-entry').style.display='flex';
+    renderNameEntry(state.managers&&state.managers.length>0?'login':'register');
   }
 }
 
