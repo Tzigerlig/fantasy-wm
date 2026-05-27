@@ -1194,10 +1194,9 @@ function copyLink(){
 }
 
 function requestNotificationPermission(){
-  if(!('Notification' in window))return;
-  Notification.requestPermission().then(p=>{
-    localStorage.setItem('fwm_notif',p);
-  });
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission();
+  }
 }
 
 function sendNotif(title,body,icon='⚽'){
@@ -1213,24 +1212,47 @@ async function setMyName(){
     if(!name){toast('Bitte Namen eingeben!');return;}
     myName=name;
     localStorage.setItem('fwm_myname',myName);
+
+    // Name-Entry verstecken
+    const nameEntry=document.getElementById('name-entry');
+    if(nameEntry)nameEntry.style.display='none';
+
+    // App anzeigen
+    const app=document.getElementById('app');
+    if(app){app.style.display='flex';app.style.flexDirection='column';}
+
+    // User display setzen
+    const ud=document.getElementById('user-display');
+    if(ud)ud.textContent='👤 '+myName;
+
+    // State updaten
     if(!state.managers.includes(myName)){
       state.managers.push(myName);
       if(!state.squads[myName])state.squads[myName]=[];
       await saveToDB();
     }
-    document.getElementById('name-entry').style.display='none';
-    const ud=document.getElementById('user-display');
-    if(ud)ud.textContent='👤 '+myName;
-    document.getElementById('app').style.display='flex';
-    document.getElementById('app').style.flexDirection='column';
+
+    // Share link setzen
+    const sl=document.getElementById('share-link');
+    if(sl)sl.value=window.location.origin+window.location.pathname;
+
+    // Alles rendern
     renderSetup();
     updatePhaseBadge();
+    renderCountdown();
+    setInterval(renderCountdown,1000);
     startAutoSync();
+
     toast('Willkommen, '+myName+'! 👋');
     requestNotificationPermission();
+
   }catch(e){
-    toast('Fehler beim Anmelden: '+e.message);
     console.error('setMyName error:',e);
+    // Fallback: App trotzdem anzeigen
+    const app=document.getElementById('app');
+    if(app){app.style.display='flex';app.style.flexDirection='column';}
+    const nameEntry=document.getElementById('name-entry');
+    if(nameEntry)nameEntry.style.display='none';
   }
 }
 
