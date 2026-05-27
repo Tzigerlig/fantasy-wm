@@ -1053,6 +1053,7 @@ const SUPABASE_URL='https://leyicldfhxxsnbobngbs.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxleWljbGRmaHh4c25ib2JuZ2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NDQ0MDYsImV4cCI6MjA5NTMyMDQwNn0.dKi8lIbli1_oGmFG9cKLnNOZBu39bZSNgPQsdacQ1YE';
 const LIGA_ID='fantasy_wm_2026_liga1';
 const WM_LEAGUE_ID=1; // FIFA World Cup in API-Football
+const ADMIN_PW='admin2026';
 const WM_SEASON=2026;
 
 const {createClient}=supabase;
@@ -1186,7 +1187,8 @@ function updatePhaseBadge(){
 }
 
 function copyLink(){
-  navigator.clipboard.writeText(window.location.href).then(()=>{
+  const shareUrl=window.location.origin+window.location.pathname;
+  navigator.clipboard.writeText(shareUrl).then(()=>{
     toast('Link kopiert! Schick ihn an deine Freunde 📋');
   });
 }
@@ -1233,7 +1235,7 @@ function renderSetup(){
       '</div>').join(''):'<span style="color:var(--muted);font-size:13px">Noch keine Manager</span>';
   }
   const sl=document.getElementById('share-link');
-  if(sl)sl.value=window.location.href;
+  if(sl)sl.value=window.location.origin+window.location.pathname;
   renderRules();
   renderScoringDisplay();
 }
@@ -1939,7 +1941,7 @@ function showAdminLogin(){
 
 function checkAdminPw(){
   const pw=document.getElementById('admin-pw')?.value||'';
-  if(pw==='admin2026'||pw===myName){document.getElementById('admin-overlay')?.remove();showAdminPanel();}
+  if(pw===ADMIN_PW||pw===myName){document.getElementById('admin-overlay')?.remove();showAdminPanel();}
   else toast('Falsches Passwort!');
 }
 
@@ -2950,7 +2952,25 @@ window.addEventListener('appinstalled',()=>{
   toast('App installiert! 🎉');
 });
 
+function openAdmin(){showAdminPanel();}
+
 async function init(){
+  const urlParams=new URLSearchParams(window.location.search);
+  if(urlParams.get('admin')===ADMIN_PW){
+    await loadFromDB();
+    document.getElementById('loading-overlay').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('app').style.flexDirection='column';
+    if(!myName){
+      document.getElementById('name-entry').style.display='flex';
+    } else {
+      const ud=document.getElementById('user-display');if(ud)ud.textContent='👤 '+myName;
+    }
+    renderSetup();
+    updatePhaseBadge();
+    openAdmin();
+    return;
+  }
   await loadFromDB();
   if(!myName){
     document.getElementById('loading-overlay').style.display='none';
