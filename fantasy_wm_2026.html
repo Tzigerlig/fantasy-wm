@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fantasy WM 2026</title>
+<meta name="theme-color" content="#0a4a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fantasy WM">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -843,6 +849,13 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
         <button class="btn btn-primary" onclick="saveApiKey()">Speichern</button>
       </div>
       <div id="api-key-status" style="font-size:12px;margin-top:6px;color:var(--muted)"></div>
+    </div>
+
+    <!-- PWA INSTALL BUTTON -->
+    <div id="pwa-install-card" class="card" style="display:none">
+      <div class="card-title">📱 App installieren</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Installiere Fantasy WM als App auf deinem Gerät — funktioniert auch offline!</p>
+      <button class="btn btn-primary" onclick="triggerInstall()">📱 Als App installieren</button>
     </div>
   </div>
   <!-- DRAFT -->
@@ -2684,6 +2697,36 @@ function renderCountdown(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
+let deferredPrompt=null;
+
+function showInstallButton(){
+  const card=document.getElementById('pwa-install-card');
+  if(card)card.style.display='block';
+}
+
+function triggerInstall(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(()=>{
+    deferredPrompt=null;
+    const card=document.getElementById('pwa-install-card');
+    if(card)card.style.display='none';
+  });
+}
+
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  showInstallButton();
+});
+
+window.addEventListener('appinstalled',()=>{
+  deferredPrompt=null;
+  const card=document.getElementById('pwa-install-card');
+  if(card)card.style.display='none';
+  toast('App installiert! 🎉');
+});
+
 async function init(){
   await loadFromDB();
   if(!myName){
@@ -2701,6 +2744,9 @@ async function init(){
   const ud=document.getElementById('user-display');if(ud)ud.textContent='👤 '+myName;
   updatePhaseBadge();renderSetup();startAutoSync();
   setInterval(renderCountdown,1000);
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
 }
 
 init();
