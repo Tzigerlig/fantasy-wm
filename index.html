@@ -876,17 +876,6 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
       <div id="scoring-display"></div>
     </div>
 
-    <!-- API KEY (nur sichtbar für sich selbst) -->
-    <div class="card">
-      <div class="card-title">🔑 API-Football Key <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:'DM Sans',sans-serif">(privat, nur du siehst das)</span></div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:8px">Für automatische Live-Spielerdaten nach WM-Spielen.</p>
-      <div style="display:flex;gap:8px">
-        <input type="password" id="api-key-input" placeholder="X-RapidAPI-Key..." style="flex:1">
-        <button class="btn btn-primary" onclick="saveApiKey()">Speichern</button>
-      </div>
-      <div id="api-key-status" style="font-size:12px;margin-top:6px;color:var(--muted)"></div>
-    </div>
-
     <!-- PWA INSTALL BUTTON -->
     <div id="pwa-install-card" class="card" style="display:none">
       <div class="card-title">📱 App installieren</div>
@@ -1202,16 +1191,6 @@ function copyLink(){
   });
 }
 
-function saveApiKey(){
-  const val=(document.getElementById('api-key-input')||{}).value||'';
-  if(!val.trim()){toast('Bitte Key eingeben!');return;}
-  apiKey=val.trim();
-  localStorage.setItem('fwm_apikey',apiKey);
-  const s=document.getElementById('api-key-status');
-  if(s)s.innerHTML='<span style="color:var(--green2)">✓ Key gespeichert</span>';
-  toast('API-Key gespeichert! 🔑');
-}
-
 function requestNotificationPermission(){
   if(!('Notification' in window))return;
   Notification.requestPermission().then(p=>{
@@ -1255,12 +1234,6 @@ function renderSetup(){
   }
   const sl=document.getElementById('share-link');
   if(sl)sl.value=window.location.href;
-  if(apiKey){
-    const ki=document.getElementById('api-key-input');
-    if(ki)ki.value=apiKey;
-    const ks=document.getElementById('api-key-status');
-    if(ks)ks.innerHTML='<span style="color:var(--green2)">✓ Key gespeichert</span>';
-  }
   renderRules();
   renderScoringDisplay();
 }
@@ -2004,6 +1977,14 @@ function showAdminPanel(){
       <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Demo-Draft zum Testen aller Features</p>
       <button class="btn-admin-action" onclick="adminCreateTestDraft()">🧪 Test-Draft (4 Demo-Manager)</button>
     </div>
+    <div class="admin-card"><h3>🔑 API-Football Key</h3>
+      <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Für Live-Spielerdaten nach WM-Spielen.</p>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input type="password" id="adm-api-key" class="admin-input" placeholder="X-RapidAPI-Key..." style="flex:1;margin:0">
+        <button class="btn-admin-action" onclick="admSaveApiKey()">💾 Speichern</button>
+      </div>
+      <div id="adm-api-key-status" style="font-size:12px;color:#9de0b8"></div>
+    </div>
     <div class="admin-card"><h3>👥 Manager</h3><div id="adm-managers"></div>
       <button class="btn-admin-danger" style="margin-top:8px" onclick="admClearManagers()">🗑 Alle löschen</button>
     </div>
@@ -2041,6 +2022,10 @@ function admRefresh(){
     <div class="name">${m}</div><div class="pts">${getManagerPoints(m)}pts</div>
     <button class="btn-admin-danger" onclick="admRemoveManager('${m}')">✕</button>
   </div>`).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px">Keine Manager</div>';
+  const ak=document.getElementById('adm-api-key');
+  if(ak&&apiKey)ak.value=apiKey;
+  const aks=document.getElementById('adm-api-key-status');
+  if(aks&&apiKey)aks.innerHTML='<span style="color:#4ade80">✓ Key aktiv</span>';
 }
 
 async function admSaveConfig(){
@@ -2110,6 +2095,16 @@ async function admClearManagers(){
 
 async function admSetPhase(phase){
   state.phase=phase;await saveToDB();updatePhaseBadge();toast('Phase: '+phase);admRefresh();
+}
+
+function admSaveApiKey(){
+  const val=(document.getElementById('adm-api-key')||{}).value||'';
+  if(!val.trim()){toast('Bitte Key eingeben!');return;}
+  apiKey=val.trim();
+  localStorage.setItem('fwm_apikey',apiKey);
+  const s=document.getElementById('adm-api-key-status');
+  if(s)s.innerHTML='<span style="color:#4ade80">✓ Key gespeichert</span>';
+  toast('API-Key gespeichert! 🔑');
 }
 
 async function adminCreateTestDraft(){
@@ -2799,7 +2794,7 @@ function renderImport(){
     ${apiKey
       ?`<button class="btn btn-primary" onclick="autoImportLivePoints()">💾 Live-Punkte speichern</button>
          <button class="btn btn-outline" style="margin-left:8px" onclick="triggerLiveRefresh()">⟳ Daten laden</button>`
-      :'<div class="warn-box">API-Key im Setup-Tab eingeben.</div>'}
+      :'<div class="warn-box">API-Key im Admin Panel eingeben (5× Logo tippen).</div>'}
     <div id="import-result" style="margin-top:10px"></div>
   </div>
   <div class="card" style="margin-top:10px"><div class="card-title">📝 CSV Import</div>
