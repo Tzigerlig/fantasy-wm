@@ -1199,10 +1199,11 @@ function requestNotificationPermission(){
   }
 }
 
-function sendNotif(title,body,icon='⚽'){
-  if(!document.hidden)return;
+function sendNotif(title,body){
+  if(!('Notification' in window))return;
   if(Notification.permission!=='granted')return;
-  new Notification(title,{body,icon});
+  if(!document.hidden)return;
+  try{new Notification(title,{body,icon:'https://tzigerlig.github.io/fantasy-wm/icon-192.png'});}catch(e){}
 }
 
 async function setMyName(){
@@ -1347,13 +1348,14 @@ function refreshCurrentView(){
   updateTradeBadge&&updateTradeBadge();
   updatePhaseBadge();
   renderCountdown&&renderCountdown();
-  // Notify on new incoming trade offers
-  const incoming=(state.tradeOffers||[]).filter(o=>o.to===myName&&o.status==='pending');
-  if(incoming.length>lastTradeCount){
-    const newest=incoming[incoming.length-1];
-    sendNotif('🔄 Neues Trade-Angebot!',newest.from+' möchte mit dir traden');
-  }
-  lastTradeCount=incoming.length;
+  try{
+    const incoming=(state.tradeOffers||[]).filter(o=>o.to===myName&&o.status==='pending');
+    if(incoming.length>lastTradeCount&&lastTradeCount>=0){
+      const newest=incoming[0];
+      sendNotif('🔄 Neues Trade-Angebot!',(newest?.from||'Jemand')+' möchte mit dir traden');
+    }
+    lastTradeCount=incoming.length;
+  }catch(e){}
 }
 
 function showView(id,btn){
@@ -1511,9 +1513,9 @@ function updateDraftHeader(){
   if(statusEl)statusEl.innerHTML='<span class="dr-dot"></span> Live';
   const subtitleEl=document.getElementById('dr-board-subtitle');
   if(subtitleEl)subtitleEl.textContent=current+' ist dran';
-  if(isMyTurn&&lastNotifiedPick!==pick){
-    sendNotif('🎯 Du bist dran!','Pick '+(pick+1)+' — 90 Sekunden!');
+  if(isMyTurn&&pick!==lastNotifiedPick&&pick>0){
     lastNotifiedPick=pick;
+    sendNotif('🎯 Du bist dran!','Pick '+(pick+1)+' — 90 Sekunden!');
   }
 
   // ON THE CLOCK bar
