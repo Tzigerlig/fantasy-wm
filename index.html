@@ -428,6 +428,18 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .admin-input:focus{border-color:#4ade80;outline:none;}
 .admin-select{background:#0d2a0d;border:1px solid #2d4a2d;color:#fff;border-radius:6px;padding:6px 10px;font-size:13px;font-family:'DM Sans',sans-serif;}
 .draft-order-preview{background:#0d2a0d;border-radius:var(--radius-sm);padding:10px;margin-top:8px;font-size:12px;color:#9de0b8;max-height:100px;overflow-y:auto;line-height:2;}
+.admin-tabs{display:flex;background:#0d2a0d;border-bottom:1px solid #2d4a2d;overflow-x:auto;}
+.admin-tab{background:none;border:none;color:rgba(255,255,255,0.4);padding:12px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;}
+.admin-tab:hover{color:#9de0b8;}
+.admin-tab.active{color:#f0c040;border-bottom-color:#f0c040;}
+.adm-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.adm-scoring-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#0d2a0d;border-radius:6px;font-size:12px;}
+.adm-scoring-row input{width:60px;background:#1a3a1a;border:1px solid #2d4a2d;color:#f0c040;border-radius:4px;padding:3px 6px;font-size:13px;text-align:center;font-family:'DM Sans',sans-serif;}
+.adm-timeline{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+.adm-timeline-step{display:flex;align-items:center;gap:10px;font-size:13px;}
+.adm-timeline-dot{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.adm-timeline-dot.done{background:#166534;color:#4ade80;}
+.adm-timeline-dot.pending{background:#1a3a1a;border:1px solid #2d4a2d;color:rgba(255,255,255,0.3);}
 
 /* ── LOADING / NAME ENTRY ─────────────────────────────────────── */
 .loading-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#0a4a2e,#0d6b42);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;color:#fff;}
@@ -1041,6 +1053,23 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
       <div id="top-players-list"></div>
     </div>
   </div>
+</div>
+
+<div id="admin-panel" class="admin-panel" style="display:none">
+  <div class="admin-header">
+    <h1>⚙️ Admin Panel</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="font-size:12px;color:rgba(255,255,255,0.6)">Fantasy WM 2026</span>
+      <button onclick="closeAdmin()" style="background:#991b1b;border:none;color:#fff;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">✕ Schliessen</button>
+    </div>
+  </div>
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchAdminTab('liga',this)">📊 Liga</button>
+    <button class="admin-tab" onclick="switchAdminTab('draft',this)">🎯 Draft</button>
+    <button class="admin-tab" onclick="switchAdminTab('manager',this)">👥 Manager</button>
+    <button class="admin-tab" onclick="switchAdminTab('settings',this)">⚙️ Settings</button>
+  </div>
+  <div class="admin-section" id="admin-content"></div>
 </div>
 
 <div id="player-modal" onclick="closePlayerModal()">
@@ -2103,89 +2132,234 @@ function checkAdminPw(){
   else toast('Falsches Passwort!');
 }
 
+let currentAdminTab='liga';
+
 function showAdminPanel(){
-  const p=document.createElement('div');
-  p.id='admin-panel';p.className='admin-panel';
-  p.innerHTML=`<div class="admin-header">
-    <h1>⚙️ Admin Panel</h1>
-    <button onclick="document.getElementById('admin-panel').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">✕ Schliessen</button>
-  </div>
-  <div class="admin-section">
-    <div class="admin-card"><h3>📊 Status</h3><div id="adm-stats"></div></div>
-    <div class="admin-card"><h3>⚙️ Konfiguration</h3>
-      <label class="admin-input" style="background:none;border:none;padding:0;font-size:11px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px">Kader-Grösse</label>
-      <select class="admin-select" id="adm-size" style="width:100%;margin:4px 0 10px">
-        <option value="11">11</option><option value="13">13</option><option value="14">14 (Standard)</option><option value="15">15</option>
-      </select>
-      <label class="admin-input" style="background:none;border:none;padding:0;font-size:11px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px">Draft-Typ</label>
-      <select class="admin-select" id="adm-type" style="width:100%;margin:4px 0 10px">
-        <option value="snake">Snake</option><option value="linear">Linear</option>
-      </select>
-      <label class="admin-input" style="background:none;border:none;padding:0;font-size:11px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px">Draft-Datum</label>
-      <input type="datetime-local" class="admin-input" id="adm-date" style="margin:4px 0 10px">
-      <button class="btn-admin-action" onclick="admSaveConfig()">💾 Speichern</button>
-    </div>
-    <div class="admin-card"><h3>🎯 Draft</h3>
-      <div id="adm-order" class="draft-order-preview" style="margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-admin-action" onclick="admStartDraft()">▶️ Starten</button>
-        <button class="btn-admin-action" onclick="admSkipPick()">⏭ Überspringen</button>
-        <button class="btn-admin-danger" onclick="admResetDraft()">🔄 Reset</button>
-      </div>
-    </div>
-    <div class="admin-card"><h3>🧪 Test</h3>
-      <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Demo-Draft zum Testen aller Features</p>
-      <button class="btn-admin-action" onclick="adminCreateTestDraft()">🧪 Test-Draft (4 Demo-Manager)</button>
-    </div>
-    <div class="admin-card"><h3>🔑 API-Football Key</h3>
-      <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Für Live-Spielerdaten nach WM-Spielen.</p>
-      <div style="display:flex;gap:8px;margin-bottom:6px">
-        <input type="password" id="adm-api-key" class="admin-input" placeholder="X-RapidAPI-Key..." style="flex:1;margin:0">
-        <button class="btn-admin-action" onclick="admSaveApiKey()">💾 Speichern</button>
-      </div>
-      <div id="adm-api-key-status" style="font-size:12px;color:#9de0b8"></div>
-    </div>
-    <div class="admin-card"><h3>👥 Manager</h3><div id="adm-managers"></div>
-      <button class="btn-admin-danger" style="margin-top:8px" onclick="admClearManagers()">🗑 Alle löschen</button>
-    </div>
-    <div class="admin-card"><h3>🎯 Phase setzen</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-admin-action" onclick="admSetPhase('setup')">Setup</button>
-        <button class="btn-admin-action" onclick="admSetPhase('draft')">Draft</button>
-        <button class="btn-admin-action" onclick="admSetPhase('active')">Aktiv</button>
-      </div>
-    </div>
-    <div class="admin-card"><h3>⚠️ Danger Zone</h3>
-      <button class="btn-admin-danger" onclick="resetAll()">🗑 Alles zurücksetzen</button>
-    </div>
-  </div>`;
-  document.body.appendChild(p);
-  admRefresh();
+  const p=document.getElementById('admin-panel');
+  if(!p)return;
+  p.style.display='block';
+  // Reset tabs to liga
+  document.querySelectorAll('.admin-tab').forEach((b,i)=>{b.classList.toggle('active',i===0);});
+  currentAdminTab='liga';
+  renderAdminContent();
 }
 
-function admRefresh(){
+function closeAdmin(){
+  const p=document.getElementById('admin-panel');
+  if(p)p.style.display='none';
+}
+
+function switchAdminTab(tab,btn){
+  currentAdminTab=tab;
+  document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderAdminContent();
+}
+
+function admRefresh(){renderAdminContent();}
+function renderAdminPanel(){renderAdminContent();}
+
+function renderAdminContent(){
+  const el=document.getElementById('admin-content');if(!el)return;
   const ms=state.managers||[];
+  const phase=state.phase||'setup';
   const picks=Object.values(state.squads||{}).reduce((s,sq)=>s+sq.length,0);
-  const el=document.getElementById('adm-stats');
-  if(el)el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px">
-    ${[['Manager',ms.length],['Phase',state.phase||'setup'],['Picks',picks],['Spieltage',state.matchdays?.length||0]].map(([l,v])=>
-    `<div class="admin-stat"><div class="admin-stat-val">${v}</div><div class="admin-stat-lbl">${l}</div></div>`).join('')}
+  const totalPts=ms.reduce((s,m)=>s+getManagerPoints(m),0);
+  const trades=(state.tradeOffers||[]).length+(state.tradeHistory||[]).length;
+
+  if(currentAdminTab==='liga'){
+    const statTiles=[['Manager',ms.length],['Spieler gedraftet',picks],['Spieltage',(state.matchdays||[]).length],['Trades',trades],['Gesamtpunkte',totalPts],['Phase',phase]];
+    const draftDone=phase==='active'||phase==='draft';
+    const steps=[
+      [true,'Liga erstellt'],
+      [ms.length>=2,'Manager beigetreten ('+ms.length+' bisher)'],
+      [!!state.draftScheduledFor||draftDone, state.draftScheduledFor&&phase==='setup'?'Draft geplant: '+new Date(state.draftScheduledFor).toLocaleString('de',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' Uhr':'Draft geplant'],
+      [draftDone,'Draft abgeschlossen'],
+      [(state.matchdays||[]).length>0,'Spieltage laufen']
+    ];
+    const lastTrades=(state.tradeHistory||[]).slice(-5).reverse();
+    const lastMds=(state.matchdays||[]).slice(-3).reverse();
+    el.innerHTML=`
+      <div class="admin-card"><h3>📊 Liga-Statistiken</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          ${statTiles.map(([l,v])=>`<div class="admin-stat" style="margin:0"><div class="admin-stat-val" style="font-size:${String(v).length>4?'18px':'26px'}">${v}</div><div class="admin-stat-lbl">${l}</div></div>`).join('')}
+        </div>
+      </div>
+      <div class="admin-card"><h3>🗺️ Liga-Status</h3>
+        <div class="adm-timeline">
+          ${steps.map(([done,label])=>`<div class="adm-timeline-step">
+            <div class="adm-timeline-dot ${done?'done':'pending'}">${done?'✓':'○'}</div>
+            <span style="color:${done?'#9de0b8':'rgba(255,255,255,0.4)'}">${label}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+      ${lastTrades.length?`<div class="admin-card"><h3>🔄 Letzte Trades</h3>
+        ${lastTrades.map(t=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #2d4a2d;color:#9de0b8">${t.from} ⇄ ${t.to} · <span style="color:${t.status==='accepted'?'#4ade80':'#f87171'}">${t.status==='accepted'?'✅':'❌'}</span></div>`).join('')}
+      </div>`:''}
+      ${lastMds.length?`<div class="admin-card"><h3>📅 Letzte Spieltage</h3>
+        ${lastMds.map(md=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #2d4a2d;color:#9de0b8">${md.name} · ${(md.entries||[]).length} Einträge</div>`).join('')}
+      </div>`:''}
+      <div class="admin-card"><h3>🎯 Phase setzen</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${['setup','draft','active'].map(ph=>`<button class="btn-admin-action" style="${phase===ph?'border-color:#f0c040;color:#f0c040':''}" onclick="admSetPhase('${ph}')">${ph==='setup'?'⚙️ Setup':ph==='draft'?'🎯 Draft':'✅ Aktiv'}</button>`).join('')}
+        </div>
+      </div>`;
+
+  } else if(currentAdminTab==='draft'){
+    if(phase==='active'){
+      el.innerHTML=`<div class="admin-card"><h3>✅ Draft abgeschlossen</h3>
+        <p style="color:#9de0b8;font-size:13px">Alle ${picks} Spieler wurden gedraftet. Liga ist aktiv.</p>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-admin-action" onclick="admSkipPick()">⏭ Pick überspringen</button>
+          <button class="btn-admin-danger" onclick="admResetDraft()">↺ Draft zurücksetzen</button>
+        </div>
+      </div>`;
+    } else if(phase==='draft'){
+      const pick=state.draftPick||0;
+      const order=state.draftOrder||[];
+      const current=order[pick]||'–';
+      const pct=order.length?Math.round(pick/order.length*100):0;
+      el.innerHTML=`<div class="admin-card"><h3>🎯 Draft läuft</h3>
+        <div style="font-size:28px;font-family:'Bebas Neue',sans-serif;color:#f0c040;margin:8px 0">${current} ist dran</div>
+        <div style="font-size:12px;color:#9de0b8;margin-bottom:12px">Pick ${pick+1} von ${order.length} · ${pct}% abgeschlossen</div>
+        <div style="background:#0d2a0d;border-radius:6px;height:8px;margin-bottom:14px"><div style="background:#f0c040;height:8px;border-radius:6px;width:${pct}%"></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-admin-action" onclick="admSkipPick()">⏭ Pick überspringen</button>
+          <button class="btn-admin-danger" onclick="admResetDraft()">↺ Reset</button>
+        </div>
+        <div class="draft-order-preview" style="margin-top:12px">${order.slice(pick,pick+10).map((m,i)=>`<span style="color:${i===0?'#f0c040':'#9de0b8'}">${i===0?'▶ ':''+(pick+i+1)+'. '}${m}</span>`).join(' · ')}</div>
+      </div>`;
+    } else if(state.draftScheduledFor){
+      const d=new Date(state.draftScheduledFor);
+      el.innerHTML=`<div class="admin-card"><h3>⏰ Draft geplant</h3>
+        <div style="font-size:22px;font-family:'Bebas Neue',sans-serif;color:#f0c040;margin:8px 0">${d.toLocaleString('de',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'})} Uhr</div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn-admin-action" onclick="admStartDraft()">🎯 Jetzt sofort starten</button>
+          <button class="btn-admin-danger" onclick="if(confirm('Datum entfernen?')){delete state.draftScheduledFor;saveToDB().then(()=>{toast('Planung gelöscht');renderAdminContent();});}">✕ Datum entfernen</button>
+        </div>
+      </div>
+      ${_draftSetupCard()}`;
+    } else {
+      el.innerHTML=`<div class="admin-card"><h3>📋 Draft planen</h3>${_draftSetupCard(true)}</div>`;
+    }
+
+  } else if(currentAdminTab==='manager'){
+    el.innerHTML=`<div class="admin-card"><h3>👥 Manager (${ms.length})</h3>
+      ${ms.length?ms.map((m,i)=>`<div class="admin-manager-row">
+        <div class="avatar" style="background:${getColor(i)}33;color:${getColor(i)};font-size:11px;width:28px;height:28px">${getInitials(m)}</div>
+        <div class="name">${m}${m===myName?' <span style="font-size:10px;color:#4ade80">(Du)</span>':''}</div>
+        <div class="pts">${getManagerPoints(m)}pts</div>
+        <span style="font-size:11px;color:#9de0b8;margin-right:6px">${(state.squads[m]||[]).length}🧑</span>
+        <button class="btn-admin-danger" onclick="admRemoveManager('${m.replace(/'/g,"\\'")}')">✕ Kicken</button>
+      </div>`).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:8px">Keine Manager</div>'}
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <input class="admin-input" id="adm-add-name" placeholder="Name..." style="flex:1">
+        <button class="btn-admin-action" onclick="admAddManager()">+ Hinzufügen</button>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-admin-danger" onclick="admClearManagers()">🗑 Alle löschen</button>
+      </div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px">Manager joinen automatisch wenn sie den Liga-Link öffnen.</p>
+    </div>`;
+
+  } else if(currentAdminTab==='settings'){
+    const s=state.scoring||{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3,pens:5};
+    const scoringFields=[
+      ['goalAN','Tor Stürmer'],['goalMI','Tor Mittelfeld'],['goalLA','Tor Abwehr'],['assist','Assist'],
+      ['csGK','Clean Sheet TW'],['csLA','Clean Sheet Abwehr'],['yellow','Gelbe Karte'],['red','Rote Karte'],
+      ['motm','Man of the Match'],['pens','Elfmeter pariert']
+    ];
+    el.innerHTML=`
+      <div class="admin-card"><h3>⭐ Punktesystem</h3>
+        <div class="adm-grid-2">
+          ${scoringFields.map(([k,label])=>`<div class="adm-scoring-row">
+            <span style="color:#9de0b8">${label}</span>
+            <input type="number" id="sc-${k}" value="${s[k]||0}">
+          </div>`).join('')}
+        </div>
+        <button class="btn-admin-action" onclick="admSaveScoring()">💾 Speichern</button>
+      </div>
+      <div class="admin-card"><h3>🔑 API-Football Key</h3>
+        <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Für Live-Spielerdaten nach WM-Spielen.</p>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input type="password" id="adm-api-key" class="admin-input" placeholder="X-RapidAPI-Key..." style="flex:1;margin:0" value="${apiKey||''}">
+          <button class="btn-admin-action" onclick="admSaveApiKey()">💾 Speichern</button>
+        </div>
+        <div id="adm-api-key-status" style="font-size:12px;color:#9de0b8">${apiKey?'<span style="color:#4ade80">✓ Key aktiv</span>':''}</div>
+      </div>
+      <div class="admin-card"><h3>⚠️ Danger Zone</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-admin-danger" onclick="admResetDraft()">↺ Nur Draft zurücksetzen</button>
+          <button class="btn-admin-danger" onclick="if(confirm('Wirklich ALLES löschen?')&&confirm('Letzte Chance — alles weg?'))resetAll()">💣 Alles zurücksetzen</button>
+        </div>
+      </div>`;
+  }
+}
+
+function _draftSetupCard(inCard){
+  const ms=state.managers||[];
+  const shuffledOrder=state.draftOrder?.length?state.draftOrder:[...ms];
+  return `${inCard?'':''}<div style="${inCard?'':''}">
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Datum & Zeit</label>
+      <input type="datetime-local" class="admin-input" id="adm-date" value="${state.draftScheduledFor?new Date(state.draftScheduledFor).toISOString().slice(0,16):''}">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="font-size:11px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Spieler/Team</label>
+        <select class="admin-select" id="adm-size" style="width:100%">
+          ${[6,11,12,14,16].map(n=>`<option value="${n}"${(state.squadSize||14)==n?' selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Draft-Typ</label>
+        <select class="admin-select" id="adm-type" style="width:100%">
+          <option value="snake"${(state.draftType||'snake')==='snake'?' selected':''}>Snake</option>
+          <option value="linear"${state.draftType==='linear'?' selected':''}>Linear</option>
+        </select>
+      </div>
+    </div>
+    <label style="font-size:11px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Draft-Reihenfolge</label>
+    <div class="draft-order-preview" style="margin-bottom:8px">${shuffledOrder.length?shuffledOrder.join(' → '):'Wird aus Manager-Liste generiert'}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-admin-action" onclick="admPlanDraft()">⏰ Draft planen</button>
+      <button class="btn-admin-action" onclick="admStartDraft()">🎯 Sofort starten</button>
+      <button class="btn-admin-action" onclick="admShuffleOrder()">🔀 Reihenfolge mischen</button>
+      <button class="btn-admin-action" onclick="adminCreateTestDraft()">🧪 Test-Draft</button>
+    </div>
   </div>`;
-  const sz=document.getElementById('adm-size');if(sz)sz.value=String(state.squadSize||14);
-  const tp=document.getElementById('adm-type');if(tp)tp.value=state.draftType||'snake';
-  if(state.draftScheduledFor){const di=document.getElementById('adm-date');if(di)di.value=new Date(state.draftScheduledFor).toISOString().slice(0,16);}
-  const ord=document.getElementById('adm-order');
-  if(ord)ord.textContent=state.draftOrder?.length?'Reihenfolge: '+state.draftOrder.slice(0,30).join(' → '):'Noch keine Reihenfolge — wird zufällig generiert.';
-  const mel=document.getElementById('adm-managers');
-  if(mel)mel.innerHTML=ms.length?ms.map((m,i)=>`<div class="admin-manager-row">
-    <div class="avatar" style="background:${getColor(i)}33;color:${getColor(i)};font-size:11px;width:28px;height:28px">${getInitials(m)}</div>
-    <div class="name">${m}</div><div class="pts">${getManagerPoints(m)}pts</div>
-    <button class="btn-admin-danger" onclick="admRemoveManager('${m}')">✕</button>
-  </div>`).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px">Keine Manager</div>';
-  const ak=document.getElementById('adm-api-key');
-  if(ak&&apiKey)ak.value=apiKey;
-  const aks=document.getElementById('adm-api-key-status');
-  if(aks&&apiKey)aks.innerHTML='<span style="color:#4ade80">✓ Key aktiv</span>';
+}
+
+async function admPlanDraft(){
+  state.squadSize=parseInt(document.getElementById('adm-size')?.value||'14');
+  state.draftType=document.getElementById('adm-type')?.value||'snake';
+  const dv=document.getElementById('adm-date')?.value;
+  if(!dv){toast('Bitte Datum eingeben!');return;}
+  state.draftScheduledFor=new Date(dv).toISOString();
+  await saveToDB();toast('Draft geplant ⏰');renderAdminContent();
+}
+
+async function admShuffleOrder(){
+  const ms=[...state.managers];
+  for(let i=ms.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ms[i],ms[j]]=[ms[j],ms[i]];}
+  state.draftOrder=ms;
+  await saveToDB();renderAdminContent();toast('Reihenfolge gemischt 🔀');
+}
+
+async function admAddManager(){
+  const name=(document.getElementById('adm-add-name')?.value||'').trim();
+  if(!name){toast('Name eingeben!');return;}
+  if(state.managers.includes(name)){toast('Manager existiert bereits!');return;}
+  state.managers.push(name);
+  if(!state.squads[name])state.squads[name]=[];
+  await saveToDB();toast(name+' hinzugefügt');renderAdminContent();
+}
+
+async function admSaveScoring(){
+  const keys=['goalAN','goalMI','goalLA','assist','csGK','csLA','yellow','red','motm','pens'];
+  state.scoring=state.scoring||{};
+  keys.forEach(k=>{const el=document.getElementById('sc-'+k);if(el)state.scoring[k]=parseFloat(el.value)||0;});
+  await saveToDB();toast('Punktesystem gespeichert ✅');
 }
 
 async function admSaveConfig(){
@@ -2193,7 +2367,7 @@ async function admSaveConfig(){
   state.draftType=document.getElementById('adm-type')?.value||'snake';
   const dv=document.getElementById('adm-date')?.value;
   if(dv)state.draftScheduledFor=new Date(dv).toISOString();
-  await saveToDB();toast('Konfiguration gespeichert ✅');admRefresh();
+  await saveToDB();toast('Konfiguration gespeichert ✅');renderAdminContent();
 }
 
 async function admStartDraft(){
@@ -2211,7 +2385,7 @@ async function admStartDraft(){
   delete state.draftScheduledFor;
   await saveToDB();toast('Draft gestartet! ▶️');admRefresh();
   sendNotif('🚀 Draft startet!','Alle sind bereit — viel Erfolg!');
-  document.getElementById('admin-panel')?.remove();
+  closeAdmin();
   showView('draft',document.querySelectorAll('.nav-btn')[1]);
 }
 
@@ -2282,7 +2456,7 @@ async function adminCreateTestDraft(){
   state.phase='draft';
   await saveToDB();
   toast('Test-Draft gestartet! 🎯');
-  document.getElementById('admin-panel')?.remove();
+  closeAdmin();
   showView('draft',document.querySelectorAll('.nav-btn')[1]);
 }
 
