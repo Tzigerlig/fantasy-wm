@@ -1997,6 +1997,10 @@ function showAdminPanel(){
         <button class="btn-admin-danger" onclick="admResetDraft()">🔄 Reset</button>
       </div>
     </div>
+    <div class="admin-card"><h3>🧪 Test</h3>
+      <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Demo-Draft zum Testen aller Features</p>
+      <button class="btn-admin-action" onclick="adminCreateTestDraft()">🧪 Test-Draft (4 Demo-Manager)</button>
+    </div>
     <div class="admin-card"><h3>👥 Manager</h3><div id="adm-managers"></div>
       <button class="btn-admin-danger" style="margin-top:8px" onclick="admClearManagers()">🗑 Alle löschen</button>
     </div>
@@ -2103,6 +2107,25 @@ async function admClearManagers(){
 
 async function admSetPhase(phase){
   state.phase=phase;await saveToDB();updatePhaseBadge();toast('Phase: '+phase);admRefresh();
+}
+
+async function adminCreateTestDraft(){
+  if(!confirm('Test-Draft mit 4 Demo-Managern erstellen?'))return;
+  state.managers=['Demo1','Demo2','Demo3','Demo4'];
+  state.squads={Demo1:[],Demo2:[],Demo3:[],Demo4:[]};
+  state.squadSize=6;
+  const order=[];
+  for(let r=0;r<6;r++){
+    const round=r%2===1?[...state.managers].reverse():[...state.managers];
+    order.push(...round);
+  }
+  state.draftOrder=order;
+  state.draftPick=0;
+  state.phase='draft';
+  await saveToDB();
+  toast('Test-Draft gestartet! 🎯');
+  document.getElementById('admin-panel')?.remove();
+  showView('draft',document.querySelectorAll('.nav-btn')[1]);
 }
 
 // ── MY TEAM ───────────────────────────────────────────────────────
