@@ -171,6 +171,17 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   transition:all 0.15s;
 }
 .manager-chip:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(13,107,66,0.15);}
+.liga-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.liga-stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow);transition:transform 0.15s;}
+.liga-stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.lsc-icon{font-size:24px;margin-bottom:6px;}
+.lsc-val{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--green);line-height:1;}
+.lsc-lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px;}
+.status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:20px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;transition:all 0.15s;}
+.status-pill.waiting{background:rgba(255,255,255,0.1);color:#a7f3d0;border:1px solid rgba(255,255,255,0.2);}
+.status-pill.active{background:#f0c040;color:#1a1a1a;animation:pulse 1.5s infinite;}
+.status-pill.draft-live{background:#4ade80;color:#1a1a1a;animation:pulse 1.5s infinite;}
+.status-pill.done{background:rgba(74,222,128,0.2);color:#4ade80;border:1px solid rgba(74,222,128,0.3);}
 .avatar{
   width:30px;height:30px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
@@ -874,38 +885,73 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 
   <!-- SETUP -->
   <div class="view active" id="view-setup">
-    <!-- Hero (rendered by renderSetup) -->
-    <div id="setup-hero"></div>
+
+    <!-- HERO -->
+    <div class="setup-hero" style="position:relative;overflow:hidden">
+      <div style="position:relative;z-index:1">
+        <div style="font-size:48px;margin-bottom:8px">🏆</div>
+        <h2>FANTASY WM 2026</h2>
+        <p>🇺🇸 USA · 🇨🇦 Kanada · 🇲🇽 Mexiko · 11. Juni – 19. Juli 2026</p>
+        <div id="hero-status" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- COUNTDOWN -->
+    <div id="countdown-container"></div>
+
+    <!-- LIGA STATS GRID -->
+    <div class="liga-stats-grid">
+      <div class="liga-stat-card">
+        <div class="lsc-icon">👥</div>
+        <div class="lsc-val" id="stat-managers">0</div>
+        <div class="lsc-lbl">Manager</div>
+      </div>
+      <div class="liga-stat-card">
+        <div class="lsc-icon">🎯</div>
+        <div class="lsc-val" id="stat-draft">TBD</div>
+        <div class="lsc-lbl">Draft</div>
+      </div>
+      <div class="liga-stat-card">
+        <div class="lsc-icon">⚽</div>
+        <div class="lsc-val">11. Jun</div>
+        <div class="lsc-lbl">WM-Start</div>
+      </div>
+    </div>
 
     <!-- MANAGER CARD -->
     <div class="card">
       <div class="card-title">👥 Manager in der Liga</div>
       <div id="manager-list" class="manager-list"></div>
-      <div id="manager-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+      <div id="manager-status-text" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
     </div>
 
-    <!-- SHARE LINK -->
+    <!-- LIGA TEILEN -->
     <div class="card">
-      <div class="card-title">🔗 Liga teilen</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Schick diesen Link an deine Freunde — kein Account nötig!</p>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="share-link" readonly style="font-size:12px;background:#f8f8f5">
-        <button class="btn btn-primary" onclick="copyLink()">📋 Kopieren</button>
+      <div class="card-title">🔗 Freunde einladen</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Schick diesen Link oder zeig den QR-Code</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input type="text" id="share-link" readonly style="font-size:12px;background:#f8f8f5;flex:1">
+            <button class="btn btn-primary" onclick="copyLink()">📋 Kopieren</button>
+          </div>
+        </div>
+        <img id="qr-code" src="" style="width:100px;height:100px;border-radius:8px;border:1px solid var(--border)" alt="QR Code">
       </div>
     </div>
 
-    <!-- SPIELREGELN (collapsible) -->
+    <!-- SPIELREGELN -->
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleRules()">
         <div class="card-title" style="margin-bottom:0">📖 Wie funktioniert es?</div>
-        <button id="rules-toggle-btn" onclick="toggleRules()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif">anzeigen</button>
+        <button class="btn btn-outline btn-sm" id="rules-toggle-btn">anzeigen</button>
       </div>
-      <div id="rules-body" style="display:none">
+      <div id="rules-body" style="display:none;margin-top:12px">
         <div id="rules-content"></div>
       </div>
     </div>
 
-    <!-- PWA INSTALL BUTTON -->
+    <!-- PWA INSTALL -->
     <div id="pwa-install-card" class="card" style="display:none">
       <div class="card-title">📱 App installieren</div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Installiere Fantasy WM als App auf deinem Gerät — funktioniert auch offline!</p>
@@ -1414,34 +1460,40 @@ function completeLogin(){
   requestNotificationPermission();
 }
 
-let rulesVisible=window.innerWidth>640;
+let rulesVisible=false;
 
 function renderSetup(){
   const phase=state.phase||'setup';
   const managers=state.managers||[];
-  const maxSlots=Math.max(state.squadSize||12,managers.length);
 
-  // Hero
-  const heroEl=document.getElementById('setup-hero');
-  if(heroEl){
-    let badge='';
+  // Hero status pill
+  const heroStatus=document.getElementById('hero-status');
+  if(heroStatus){
     if(phase==='draft'){
-      badge=`<div class="setup-status-badge draft" onclick="showView('draft',document.querySelectorAll('.nav-btn')[1])">🎯 Draft läuft jetzt! Klick zum Öffnen →</div>`;
+      heroStatus.innerHTML='<div class="status-pill draft-live" onclick="showView(\'draft\',null)">🎯 Draft läuft — Jetzt mitmachen →</div>';
     } else if(phase==='active'){
-      const mdCount=(state.matchdays||[]).length;
-      badge=`<div class="setup-status-badge active">✅ Liga aktiv · Spieltag ${mdCount}</div>`;
+      heroStatus.innerHTML='<div class="status-pill done">✅ Liga aktiv · '+(state.matchdays||[]).length+' Spieltage</div>';
     } else if(state.draftScheduledFor){
-      badge=`<div class="setup-status-badge countdown"><div id="countdown-container"></div></div>`;
+      heroStatus.innerHTML=''; // Countdown übernimmt
+      renderCountdown();
     } else {
-      badge=`<div class="setup-status-badge waiting">⏳ Warte auf Draft-Planung</div>`;
+      heroStatus.innerHTML='<div class="status-pill waiting">⏳ Warte auf Draft-Planung</div>';
     }
-    heroEl.innerHTML=`<div class="setup-hero">
-      <h2>FANTASY WM 2026</h2>
-      <p>🇺🇸 USA · 🇨🇦 Kanada · 🇲🇽 Mexiko</p>
-      ${badge}
-    </div>`;
-    // If countdown just got injected, render it immediately
-    if(state.draftScheduledFor&&phase==='setup') renderCountdown();
+  }
+
+  // Stats grid
+  const statM=document.getElementById('stat-managers');
+  if(statM)statM.textContent=managers.length;
+  const statD=document.getElementById('stat-draft');
+  if(statD){
+    if(state.draftScheduledFor){
+      const d=new Date(state.draftScheduledFor);
+      statD.textContent=d.toLocaleDateString('de',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'});
+    } else if(phase==='draft'||phase==='active'){
+      statD.textContent='✅';
+    } else {
+      statD.textContent='TBD';
+    }
   }
 
   // Manager list
@@ -1454,16 +1506,22 @@ function renderSetup(){
       '</div>').join(''):'<span style="color:var(--muted);font-size:13px">Noch keine Manager</span>';
   }
 
-  // Manager status line
-  const statusEl=document.getElementById('manager-status');
-  if(statusEl){
-    statusEl.innerHTML=managers.length+' von '+maxSlots+' Plätzen belegt'+
-      (phase==='setup'?' · <span style="color:var(--green3)">Warte auf weitere Mitspieler...</span>':'');
+  // Manager status text
+  const mst=document.getElementById('manager-status-text');
+  if(mst){
+    const count=managers.length;
+    if(phase==='active')mst.innerHTML='<span style="color:var(--green3)">✅ Liga aktiv</span>';
+    else if(phase==='draft')mst.innerHTML='<span style="color:#f0c040">🎯 Draft läuft!</span>';
+    else if(count>=4)mst.innerHTML=count+' Manager · <span style="color:var(--green3)">Bereit für den Draft! 🎯</span>';
+    else mst.innerHTML=count+' von mind. 4 · <span style="color:var(--muted)">Warte auf weitere Mitspieler...</span>';
   }
 
-  // Share link
+  // Share link + QR code
+  const shareUrl=window.location.origin+'/fantasy-wm/';
   const sl=document.getElementById('share-link');
-  if(sl)sl.value=window.location.origin+window.location.pathname;
+  if(sl)sl.value=shareUrl;
+  const qr=document.getElementById('qr-code');
+  if(qr)qr.src='https://api.qrserver.com/v1/create-qr-code/?size=100x100&data='+encodeURIComponent(shareUrl);
 
   // Rules visibility
   const rulesBody=document.getElementById('rules-body');
@@ -1472,6 +1530,7 @@ function renderSetup(){
   if(rulesBtn)rulesBtn.textContent=rulesVisible?'verstecken':'anzeigen';
 
   renderRules();
+  renderScoringDisplay();
 }
 
 function toggleRules(){
