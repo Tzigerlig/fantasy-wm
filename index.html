@@ -377,6 +377,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .fp-btn:hover{border-color:rgba(255,255,255,0.4);color:#fff;}
 .fp-btn.active{background:#f0c040;color:#1a1a1a;border-color:#f0c040;}
 .swap-hint{font-size:11px;color:var(--muted);text-align:center;padding:6px 0 8px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.empty-slot{cursor:default;opacity:0.7;}
+.empty-slot:hover .shirt-svg{transform:none;}
 .lineup-list{display:flex;flex-direction:column;gap:5px;}
 .lineup-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:grab;transition:all 0.1s;}
 .lineup-row:hover{background:#f9fafb;border-color:#d1d5db;}
@@ -2937,9 +2939,52 @@ function renderMyTeam(){
   const el=document.getElementById('myteam-content');
   if(!el)return;
   const squad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
-  if(!squad.length){
-    const inDraft=state.phase==='draft';
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">👕</div><div class="empty-title">Noch kein Team</div><p style="color:var(--muted);font-size:13px;margin:8px 0 16px">${inDraft?'Du hast noch keine Spieler gedraftet.':'Der Draft hat noch nicht begonnen.'}</p>${inDraft?'<button class="btn btn-primary btn-sm" onclick="showView(\'draft\',null)">🎯 Zum Draft</button>':''}</div>`;
+  if(!myName||!squad.length){
+    const phase=state.phase||'setup';
+    const draftDate=state.draftScheduledFor?new Date(state.draftScheduledFor).toLocaleString('de',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'}):null;
+    let html='';
+    if(phase==='setup'){
+      html+='<div style="background:linear-gradient(135deg,#0a4a2e,#0d6b42);color:#fff;border-radius:var(--radius);padding:20px;margin-bottom:14px;text-align:center">';
+      html+='<div style="font-size:36px;margin-bottom:8px">⏳</div>';
+      html+='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:24px;letter-spacing:1px">Draft noch nicht gestartet</div>';
+      html+=draftDate?'<div style="color:#9de0b8;font-size:13px;margin-top:4px">Draft am '+draftDate+'</div>':'<div style="color:#9de0b8;font-size:13px;margin-top:4px">Warte auf Draft-Planung durch den Admin</div>';
+      html+='</div>';
+    } else if(phase==='draft'){
+      html+='<div style="background:linear-gradient(135deg,#166534,#22c573);color:#fff;border-radius:var(--radius);padding:20px;margin-bottom:14px;text-align:center;cursor:pointer" onclick="showView(\'draft\',null)">';
+      html+='<div style="font-size:36px;margin-bottom:8px">🎯</div>';
+      html+='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:24px;letter-spacing:1px">Draft läuft jetzt!</div>';
+      html+='<div style="color:#dcfce7;font-size:13px;margin-top:4px">Tippe hier um zum Draft zu gehen →</div>';
+      html+='</div>';
+    }
+    html+='<div class="card"><div class="card-title">👥 Manager in der Liga</div>';
+    const sortedMgr=[...state.managers].sort((a,b)=>getManagerPoints(b)-getManagerPoints(a));
+    if(sortedMgr.length){
+      sortedMgr.forEach((m,i)=>{
+        const pts=getManagerPoints(m);const sq=(state.squads[m]||[]).length;
+        html+='<div style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--border)">';
+        html+='<div class="avatar" style="background:'+getColor(i)+'20;color:'+getColor(i)+'">'+getInitials(m)+'</div>';
+        html+='<div style="flex:1"><div style="font-weight:600">'+m+(m===myName?' <span style="font-size:10px;color:var(--green3)">(Du)</span>':'')+'</div>';
+        html+='<div style="font-size:11px;color:var(--muted)">'+sq+' Spieler · '+pts+' Punkte</div></div>';
+        html+='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--green2)">'+pts+'</div></div>';
+      });
+    } else {html+='<div class="empty-state" style="padding:16px">Noch keine Manager</div>';}
+    html+='</div>';
+    if(phase==='setup'||phase==='draft'){
+      html+='<div class="card"><div class="card-title">⭐ Top Spieler verfügbar</div>';
+      const draftedIds=getDraftedIds();
+      const topAvail=[...PLAYERS].filter(p=>!draftedIds.has(p.id)).sort((a,b)=>b.rating-a.rating).slice(0,6);
+      html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">';
+      topAvail.forEach(p=>{
+        html+='<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center">';
+        html+='<div style="font-size:20px">'+(p.nation||'').split(' ')[0]+'</div>';
+        html+='<span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>';
+        html+='<div style="font-weight:600;font-size:12px;margin-top:4px">'+p.name+'</div>';
+        html+='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--green2)">'+p.rating+'</div>';
+        html+='</div>';
+      });
+      html+='</div></div>';
+    }
+    el.innerHTML=html;
     return;
   }
   const totalPts=getManagerPoints(myName);
@@ -3125,35 +3170,61 @@ function autoSuggestLineup(squad,formation){
   return starters.slice(0,11);
 }
 
-function renderAufstellung(){
-  const el=document.getElementById('aufstellung-content');if(!el)return;
-  const squad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
-  if(!squad.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🟩</div><div class="empty-title">Noch kein Team</div></div>';return;}
-  const lineup=state.lineups?.[myName]||{};
+let pitchView='pitch';
+
+function getLineup(name){return(state.lineups?.[name])||{formation:'4-3-3',starters:[]};}
+function lockLineup(){saveLineup(getLineup(myName).formation);}
+function setPitchView(v){pitchView=v;renderAufstellung();}
+
+function buildEmptyPitch(formation){
+  const fd=FORMATIONS[formation]||FORMATIONS['4-3-3'];
+  const emptyShirt=(col,label,size)=>{
+    size=size||52;
+    return '<div class="shirt-wrap empty-slot">'
+      +'<svg viewBox="0 0 60 60" width="'+size+'" height="'+size+'"><path d="M20 12 L6 24 L16 27 L16 52 L44 52 L44 27 L54 24 L40 12 C38 7 22 7 20 12Z" fill="'+col+'" stroke="rgba(255,255,255,0.2)" stroke-dasharray="4" stroke-width="1.5"/></svg>'
+      +'<div class="shirt-name-pill" style="background:rgba(255,255,255,0.08)">'
+      +'<span class="shirt-player-name" style="color:rgba(255,255,255,0.3)">'+label+'</span>'
+      +'</div></div>';
+  };
+  let h='<div class="pitch-wrap">'
+    +'<svg class="pitch-lines" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">'
+    +'<rect x="8" y="8" width="284" height="384" rx="4" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>'
+    +'<line x1="8" y1="200" x2="292" y2="200" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>'
+    +'<circle cx="150" cy="200" r="28" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>'
+    +'</svg>';
+  h+='<div class="pitch-label">Angriff</div><div class="pitch-row">';
+  for(let i=0;i<fd.AN;i++)h+=emptyShirt('rgba(74,222,128,0.1)','STU');
+  h+='</div><div class="pitch-divider"></div>';
+  h+='<div class="pitch-label">Mittelfeld</div><div class="pitch-row">';
+  for(let i=0;i<fd.MI;i++)h+=emptyShirt('rgba(236,72,153,0.1)','MID');
+  h+='</div><div class="pitch-divider"></div>';
+  h+='<div class="pitch-label">Abwehr</div><div class="pitch-row">';
+  for(let i=0;i<fd.LA;i++)h+=emptyShirt('rgba(245,158,11,0.1)','ABW');
+  h+='</div>';
+  h+='<div class="pitch-label">Tor</div><div class="pitch-row row-gk">';
+  h+=emptyShirt('rgba(59,130,246,0.1)','TW');
+  h+='</div>';
+  h+='<div class="pitch-row row-bank">'
+    +'<div style="width:100%;text-align:center;margin-bottom:6px"><span style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase">BANK — zählt nicht für Punkte</span></div>';
+  for(let i=0;i<4;i++)h+=emptyShirt('rgba(255,255,255,0.05)','Bank',42);
+  h+='</div></div>';
+  return h;
+}
+
+function buildPitchHTML(name,locked){
+  const squad=(state.squads[name]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
+  const lineup=state.lineups?.[name]||{};
   const formation=lineup.formation||'4-3-3';
   const starters=lineup.starters?.length===11?lineup.starters:autoSuggestLineup(squad,formation);
   const fd=FORMATIONS[formation]||FORMATIONS['4-3-3'];
   const posColors={ST:'#3b82f6',LA:'#f59e0b',MI:'#ec4899',AN:'#4ade80'};
-  const shirt=(p)=>{
-    const col=starters.includes(p.id)?posColors[p.pos]:'#666';
-    return makeShirt(p.id,p,col,false,!starters.includes(p.id));
-  };
+  const shirt=(p)=>makeShirt(p.id,p,starters.includes(p.id)?posColors[p.pos]:'#666',locked,!starters.includes(p.id));
   const gk=squad.find(p=>p.pos==='ST'&&starters.includes(p.id))||squad.find(p=>p.pos==='ST');
   const defs=squad.filter(p=>p.pos==='LA'&&starters.includes(p.id)).slice(0,fd.LA);
   const mids=squad.filter(p=>p.pos==='MI'&&starters.includes(p.id)).slice(0,fd.MI);
   const fwds=squad.filter(p=>p.pos==='AN'&&starters.includes(p.id)).slice(0,fd.AN);
   const bench=squad.filter(p=>!starters.includes(p.id));
-  let html='<div class="pitch-actions">'
-    +'<div class="formation-pills" id="formation-pills">';
-  ['4-3-3','4-4-2','3-5-2','4-2-3-1','3-4-3','5-3-2'].forEach(f=>{
-    html+='<button class="fp-btn'+(lineup.formation===f?' active':'')+'" onclick="changeFormationPill(\''+f+'\',this)">'+f+'</button>';
-  });
-  html+='</div>'
-    +'<button class="btn btn-primary btn-sm" onclick="saveLineup(\''+formation+'\')">💾 Speichern</button>'
-    +'</div>'
-    +'<div id="lineup-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b;margin-bottom:10px"></div>'
-    +(swapFirst!==null?'<div class="swap-hint"><span>📱 Tippe zwei Spieler zum Tauschen</span><span>🖥️ Drag & Drop auf Desktop</span></div>':'')
-    +'<div class="pitch-wrap">'
+  return '<div class="pitch-wrap">'
     +'<svg class="pitch-lines" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">'
     +'<rect x="8" y="8" width="284" height="384" rx="4" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>'
     +'<line x1="8" y1="200" x2="292" y2="200" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>'
@@ -3169,8 +3240,58 @@ function renderAufstellung(){
     +'<div class="pitch-row row-bank">'
     +'<div style="width:100%;text-align:center;margin-bottom:6px"><span style="font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;font-weight:700">BANK</span><span style="font-size:9px;color:rgba(255,255,255,0.25);margin-left:8px">— zählt nicht für Punkte</span></div>'
     +bench.map(shirt).join('')
-    +'</div>'
-    +'</div>';
+    +'</div></div>';
+}
+
+function buildListHTML(name){
+  const squad=(state.squads[name]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
+  const posColors={ST:'#3b82f6',LA:'#f59e0b',MI:'#ec4899',AN:'#4ade80'};
+  let h='<div class="lineup-list">';
+  ['ST','LA','MI','AN'].forEach(pos=>{
+    const grp=squad.filter(p=>p.pos===pos);
+    if(!grp.length)return;
+    h+='<div style="font-size:11px;font-weight:700;color:'+posColors[pos]+';letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px">'+POS_LABEL[pos]+'</div>';
+    grp.forEach(p=>{
+      const pts=getPlayerPoints(p.id);
+      h+='<div class="lineup-row"><span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>'
+        +'<span style="flex:1;font-size:13px;font-weight:600">'+p.name+'</span>'
+        +'<span style="font-size:11px;color:var(--muted)">'+p.nation+'</span>'
+        +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--green2);margin-left:8px">'+pts+'</span>'
+        +'</div>';
+    });
+  });
+  h+='</div>';
+  return h;
+}
+
+function renderAufstellung(){
+  const el=document.getElementById('aufstellung-content');if(!el)return;
+  const hasTeam=myName&&state.squads&&state.squads[myName]&&state.squads[myName].length>0;
+  const formation=hasTeam?getLineup(myName).formation:'4-3-3';
+  const locked=isLineupLocked(myName);
+  let html='<div class="pitch-actions">';
+  if(!locked){
+    html+='<div class="formation-pills" id="formation-pills">';
+    ['4-3-3','4-4-2','3-5-2','4-2-3-1','3-4-3','5-3-2'].forEach(f=>{
+      html+='<button class="fp-btn'+(formation===f?' active':'')+'" onclick="changeFormationPill(\''+f+'\',this)">'+f+'</button>';
+    });
+    html+='</div>';
+  }
+  html+='<div style="margin-left:auto;display:flex;gap:6px">';
+  html+='<button class="btn btn-outline btn-sm'+(pitchView==='pitch'?' active':'')+'" onclick="setPitchView(\'pitch\')">⚽ Feld</button>';
+  html+='<button class="btn btn-outline btn-sm'+(pitchView==='list'?' active':'')+'" onclick="setPitchView(\'list\')">📋 Liste</button>';
+  if(hasTeam&&!locked)html+='<button class="btn btn-primary btn-sm" onclick="saveLineup(\''+formation+'\')">💾 Speichern</button>';
+  html+='</div></div>';
+  html+='<div id="lineup-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b;margin-bottom:10px"></div>';
+  if(!hasTeam){
+    html+=buildEmptyPitch(formation);
+    html+='<div style="text-align:center;padding:12px;font-size:13px;color:var(--muted)">⏳ Dein Team erscheint hier nach dem Draft</div>';
+  } else if(pitchView==='list'){
+    html+=buildListHTML(myName);
+  } else {
+    html+=buildPitchHTML(myName,locked);
+    if(!locked&&swapFirst!==null)html+='<div class="swap-hint"><span>📱 Tippe zwei Spieler zum Tauschen</span><span>🖥️ Drag & Drop auf Desktop</span></div>';
+  }
   el.innerHTML=html;
 }
 
