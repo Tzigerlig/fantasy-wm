@@ -218,6 +218,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .bn-btn.active{color:var(--green);}
 .bn-icon{font-size:22px;line-height:1;}
 .bn-label{font-size:10px;font-weight:600;letter-spacing:0.3px;}
+.captain-btn{width:24px;height:24px;border-radius:50%;border:2px solid var(--gold);font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;flex-shrink:0;padding:0;}
+.captain-badge{position:absolute;top:-4px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--gold);color:#1a1a1a;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:2;}
 .status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:20px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;transition:all 0.15s;}
 .status-pill.waiting{background:rgba(255,255,255,0.1);color:#a7f3d0;border:1px solid rgba(255,255,255,0.2);}
 .status-pill.active{background:#f0c040;color:#1a1a1a;animation:pulse 1.5s infinite;}
@@ -1276,7 +1278,7 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 // ── SUPABASE DB ──────────────────────────────────────────────────
 function getDefaultState(){
   return{phase:'setup',managers:[],squads:{},draftOrder:[],draftPick:0,draftType:'snake',
-    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},
+    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},captains:{},
     scoring:{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3,pens:5}};
 }
 
@@ -1384,15 +1386,32 @@ function getDraftedIds(){
   return ids;
 }
 
-function getPlayerPoints(playerId){
-  return(state.matchdays||[]).reduce((sum,md)=>{
+function getPlayerPoints(playerId,manager){
+  manager=manager||myName;
+  let pts=(state.matchdays||[]).reduce((sum,md)=>{
     const e=md.entries&&md.entries.find(e=>e.playerId===playerId);
     return sum+(e?e.pts:0);
   },0);
+  if(state.captains&&state.captains[manager]===playerId)pts=pts*2;
+  return pts;
+}
+
+async function setCaptain(playerId){
+  if(!state.captains)state.captains={};
+  if(state.captains[myName]===playerId){
+    delete state.captains[myName];
+    toast('Captain entfernt');
+  } else {
+    state.captains[myName]=playerId;
+    const p=PLAYERS.find(x=>x.id===playerId);
+    toast('⭐ '+(p?.name)+' ist jetzt dein Captain! (2x Punkte)');
+  }
+  await saveToDB();
+  renderMyTeam();
 }
 
 function getManagerPoints(manager){
-  return(state.squads[manager]||[]).reduce((sum,id)=>sum+getPlayerPoints(id),0);
+  return(state.squads[manager]||[]).reduce((sum,id)=>sum+getPlayerPoints(id,manager),0);
 }
 
 function updatePhaseBadge(){
@@ -3199,18 +3218,20 @@ function renderMyTeam(){
   </div>
   <div class="team-player-grid" id="team-player-grid">`;
   squad.forEach(p=>{
-    const pts=getPlayerPoints(p.id);
+    const pts=getPlayerPoints(p.id,myName);
     const flag=(p.nation||'').split(' ')[0]||'🌍';
+    const isCaptain=state.captains&&state.captains[myName]===p.id;
     html+=`<div class="team-player-card" data-pos="${p.pos}" onclick="openPlayerModal(${p.id})">
       <div class="tpc-top">
         <span class="tpc-flag">${flag}</span>
         <span class="tpc-pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
+        <button class="captain-btn${isCaptain?' captain-active':''}" onclick="event.stopPropagation();setCaptain(${p.id})" title="Als Captain setzen (2x Punkte)" style="margin-left:auto;background:${isCaptain?'var(--gold)':'transparent'};color:${isCaptain?'#1a1a1a':'var(--gold)'}">${isCaptain?'©':'C'}</button>
       </div>
       <div class="tpc-name">${p.name}</div>
       <div class="tpc-nation">${p.nation||''}</div>
       <div class="tpc-bottom">
         <span class="tpc-pts">${pts}</span>
-        <span class="tpc-pts-lbl">Pts</span>
+        <span class="tpc-pts-lbl">${isCaptain?'Pts×2':'Pts'}</span>
         <span class="tpc-rating">${p.rating}</span>
       </div>
       <div class="tpc-trade-btn" onclick="event.stopPropagation();quickTrade(${p.id})">⇄ Trade anbieten</div>
@@ -3261,7 +3282,8 @@ function shirtSVG(color1,color2){
 }
 
 function makeShirt(id,p,color,locked,isBench){
-  const pts=getPlayerPoints(id);
+  const pts=getPlayerPoints(id,myName);
+  const isCaptain=state.captains&&state.captains[myName]===id;
   const sel=swapFirst===id?'outline:3px solid #f0c040;outline-offset:3px;border-radius:8px;':'';
   const drag=!locked?'draggable="true" ondragstart="dragStart(event,'+id+')" ondragover="event.preventDefault();dragOver('+id+')" ondrop="dragDrop(event,'+id+')" ondragleave="dragLeave('+id+')" onclick="shirtClick('+id+')"':'';
   const recentPts=(state.matchdays||[]).slice(-3).map(md=>{
@@ -3272,10 +3294,11 @@ function makeShirt(id,p,color,locked,isBench){
     '<span class="pts-bubble'+(rp>0?' pos':rp<0?' neg':'')+'">'+(rp>0?'+':'')+rp+'</span>'
   ).join('');
   return '<div class="shirt-wrap'+(isBench?' is-bench':'')+'" id="shirt-'+id+'" style="'+sel+'" '+drag+'>'
+    +(isCaptain?'<div class="captain-badge">C</div>':'')
     +shirtSVG(color,'#fff')
     +'<div class="shirt-name-pill">'
     +'<span class="shirt-player-name">'+p.name.split(' ').pop()+'</span>'
-    +(pts>0?'<span class="shirt-player-pts">'+pts+' pts</span>':'')
+    +(pts>0?'<span class="shirt-player-pts">'+pts+(isCaptain?' ×2':'')+' pts</span>':'')
     +'</div>'
     +(bubbles?'<div class="shirt-pts-bubbles">'+bubbles+'</div>':'')
     +'</div>';
@@ -3514,7 +3537,7 @@ function renderRangliste(){
         <td class="rank-num">${medal}</td>
         <td><div style="display:flex;align-items:center;gap:8px">
           <div class="avatar" style="background:${getColor(i)}22;color:${getColor(i)};font-size:11px;width:28px;height:28px">${getInitials(m)}</div>
-          <span style="font-weight:${m===myName?700:500}">${m}${m===myName?' <span style="font-size:10px;color:var(--green3)">(Du)</span>':''}</span>
+          <div><span style="font-weight:${m===myName?700:500}">${m}${m===myName?' <span style="font-size:10px;color:var(--green3)">(Du)</span>':''}</span>${(()=>{const cid=state.captains?.[m];const cp=cid?PLAYERS.find(pl=>pl.id===cid):null;return cp?'<div style="font-size:10px;color:var(--gold)">⭐ '+cp.name+'</div>':'';})()}</div>
         </div></td>
         <td style="color:var(--muted)">${(state.squads[m]||[]).length}</td>
         <td class="rank-pts"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">${pts}<div style="display:flex;align-items:center;gap:4px">${diff}<span style="font-size:10px;color:var(--muted)">▾</span></div></div></td></tr>
