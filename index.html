@@ -928,7 +928,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
     <button class="nav-btn active" onclick="showView('setup',this)"><span class="nav-emoji">⚙️</span><span class="nav-text"> Setup</span></button>
     <button class="nav-btn" onclick="showView('draft',this)"><span class="nav-emoji">🎯</span><span class="nav-text"> Draft</span></button>
     <button class="nav-btn" onclick="showView('myteam',this)"><span class="nav-emoji">👕</span><span class="nav-text"> Team</span></button>
-    <button class="nav-btn" onclick="showView('aufstellung',this)"><span class="nav-emoji">🟩</span><span class="nav-text"> Aufstellung</span></button>
+    <button class="nav-btn" onclick="showView('aufstellung',this)"><span class="nav-emoji">📋</span><span class="nav-text"> Aufstellung</span></button>
     <button class="nav-btn" onclick="showView('trade',this)"><span class="nav-emoji">🔄</span><span class="nav-text"> Trade</span> <span id="nav-trade-badge" style="display:none;background:#c62828;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:3px;vertical-align:middle"></span></button>
     <button class="nav-btn" onclick="showView('live',this)"><span class="nav-emoji">🔴</span><span class="nav-text"> Live</span></button>
     <button class="nav-btn" onclick="showView('punkte',this)"><span class="nav-emoji">⚽</span><span class="nav-text"> Punkte</span></button>
@@ -2101,7 +2101,7 @@ async function runAutoDraft(){
 
     const drafted = getDraftedIds();
     const managerSquad = state.squads[manager] || [];
-    const squadSize = state.squadSize || 6;
+    const squadSize = state.squadSize || 14;
     if(managerSquad.length >= squadSize) return;
 
     const limits = getPosLimits(squadSize);
