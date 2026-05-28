@@ -2105,9 +2105,18 @@ async function toggleMockDraft(){
     mockDraftState.squadSize=size;
   }
   mockDraftState.phase='draft';
-  console.log('Mock Draft Order:',mockDraftState.draftOrder);
-  console.log('My Name:',myName);
-  console.log('First Pick:',mockDraftState.draftOrder[0]);
+  console.log('myName:', JSON.stringify(myName));
+  console.log('draftOrder:', JSON.stringify(mockDraftState.draftOrder));
+  console.log('managers:', JSON.stringify(mockDraftState.managers));
+  const myPicks=mockDraftState.draftOrder.filter(m=>m===myName);
+  console.log('Meine Picks in Order:', myPicks.length);
+  if(myPicks.length===0&&myName){
+    console.error('myName nicht in draftOrder! Fixing...');
+    const firstManager=mockDraftState.managers[0];
+    mockDraftState.draftOrder=mockDraftState.draftOrder.map(m=>m===firstManager?myName:m);
+    if(!mockDraftState.managers.includes(myName))mockDraftState.managers[0]=myName;
+    if(!mockDraftState.squads[myName])mockDraftState.squads[myName]=mockDraftState.squads[firstManager]||[];
+  }
 
   const btn=document.getElementById('mock-draft-btn');
   if(btn){btn.textContent='🎭 Mock beenden';btn.classList.add('on');}
@@ -2126,7 +2135,7 @@ async function runMockAutoDraft(){
   const order=mockDraftState.draftOrder||[];
   if(pick>=order.length)return;
   const current=order[pick];
-  if(current===myName)return;
+  if(current&&myName&&current.trim().toLowerCase()===myName.trim().toLowerCase()){startPickTimer();return;}
 
   setTimeout(()=>{
     if(!mockDraftActive||!mockDraftState)return;
@@ -2134,8 +2143,10 @@ async function runMockAutoDraft(){
     const currentOrder=mockDraftState.draftOrder||[];
     if(currentPick>=currentOrder.length)return;
     const currentManager=currentOrder[currentPick];
-    if(currentManager===myName){
-      console.log('My turn in mock, stopping auto draft');
+    const isMyTurn=currentManager&&myName&&currentManager.trim().toLowerCase()===myName.trim().toLowerCase();
+    if(isMyTurn){
+      console.log('Mein Turn! Stoppe Auto-Draft.');
+      startPickTimer();
       return;
     }
     const manager=currentManager;
@@ -2173,7 +2184,9 @@ async function runMockAutoDraft(){
     renderDraftView();
     if(mockDraftActive&&mockDraftState.phase==='draft'){
       const nextManager=(mockDraftState.draftOrder||[])[mockDraftState.draftPick||0];
-      if(nextManager&&nextManager!==myName)runMockAutoDraft();
+      const nextIsMe=nextManager&&myName&&nextManager.trim().toLowerCase()===myName.trim().toLowerCase();
+      if(nextManager&&!nextIsMe)runMockAutoDraft();
+      else if(nextIsMe)startPickTimer();
     }
   },600);
 }
@@ -2184,7 +2197,7 @@ async function mockDraftPlayer(playerId){
   const pick=mockDraftState.draftPick||0;
   const order=mockDraftState.draftOrder||[];
   if(pick>=order.length)return;
-  if(order[pick]!==myName){toast('Nicht dein Turn! '+order[pick]+' ist dran.');return;}
+  if(!order[pick]||!myName||order[pick].trim().toLowerCase()!==myName.trim().toLowerCase()){toast('Nicht dein Turn! '+order[pick]+' ist dran.');return;}
   const draftedIds=new Set();
   Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
   if(draftedIds.has(playerId)){toast('Bereits gedraftet!');return;}
