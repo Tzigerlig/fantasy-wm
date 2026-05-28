@@ -4136,58 +4136,64 @@ function openPlayerModal(playerId){
   const p=PLAYERS.find(x=>x.id===playerId);if(!p)return;
   const owner=Object.entries(state.squads||{}).find(([,sq])=>sq.includes(p.id))?.[0]||null;
   const ownerIdx=owner?state.managers.indexOf(owner):-1;
-  const matchdays=state.matchdays||[];
-  const mdPts=matchdays.map(md=>{
-    const e=md.entries?.find(e=>e.playerId===p.id);
-    return e?{name:md.name,pts:e.pts}:null;
+  const totalPts=getPlayerPoints(playerId,owner||myName);
+  const isCaptain=state.captains?.[myName]===playerId;
+  const inQueue=drQueue.includes(playerId);
+  const matchdayPts=(state.matchdays||[]).map(md=>{
+    const e=md.entries?.find(e=>e.playerId===playerId);
+    return e?{name:md.name,pts:e.pts,date:md.date}:null;
   }).filter(Boolean);
-  const totalPts=mdPts.reduce((s,x)=>s+x.pts,0);
-  const inQueue=drQueue.includes(p.id);
-  const isDrafted=!!owner;
-  const posColors={ST:'#1e40af',LA:'#854d0e',MI:'#9d174d',AN:'#166534'};
-
-  document.getElementById('player-modal-content').innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-      <div></div>
-      <button onclick="closePlayerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0;line-height:1">✕</button>
-    </div>
-    <div class="pm-header">
-      <div class="pm-rating">${p.rating}</div>
-      <div>
-        <div class="pm-name">${p.name}</div>
-        <div class="pm-meta">
-          <span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
-          <span>${p.nation}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="pm-section">
-      <div class="pm-section-title">Manager</div>
-      ${owner
-        ?`<div class="pm-owner-row">
-            <div class="avatar" style="background:${getColor(ownerIdx)}22;color:${getColor(ownerIdx)};font-size:11px;width:28px;height:28px;flex-shrink:0">${getInitials(owner)}</div>
-            <span style="font-weight:600">${owner}</span>
-            ${owner===myName?'<span style="font-size:10px;color:var(--green3);margin-left:auto">Dein Spieler</span>':''}
-          </div>`
-        :`<div style="font-size:13px;color:var(--muted);padding:8px 0">Nicht gedraftet</div>`}
-    </div>
-
-    <div class="pm-section">
-      <div class="pm-section-title">Saison-Punkte</div>
-      <div class="pm-total-pts">${totalPts}</div>
-      ${mdPts.length
-        ?mdPts.map(x=>`<div class="pm-matchday-row"><span>${x.name}</span><span class="pts-pill" style="font-size:13px">${x.pts>0?'+'+x.pts:x.pts}</span></div>`).join('')
-        :'<div style="font-size:12px;color:var(--muted);text-align:center;padding:4px 0">Noch keine Punkte</div>'}
-    </div>
-
-    ${!isDrafted?`
-    <button class="btn ${inQueue?'btn-gold':'btn-outline'} pm-watchlist-btn" onclick="toggleQueue(${p.id});openPlayerModal(${p.id})">
-      ${inQueue?'★ In Watchlist':'☆ Zu Watchlist hinzufügen'}
-    </button>`:''}
-  `;
-
+  const form=matchdayPts.slice(-5);
+  const avgForm=form.length?Math.round(form.reduce((s,x)=>s+x.pts,0)/form.length):0;
   const modal=document.getElementById('player-modal');
+  const content=document.getElementById('player-modal-content');
+  if(!modal||!content)return;
+  const formBars=form.length?('<div style="margin-bottom:16px">'
+    +'<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Form (letzte '+form.length+' Spieltage)</div>'
+    +'<div style="display:flex;gap:6px;align-items:flex-end;height:44px">'
+    +form.map(f=>{const mx=Math.max(...form.map(x=>Math.abs(x.pts)),1);const h=Math.round((Math.abs(f.pts)/mx)*36);
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">'
+        +'<div style="font-size:9px;font-weight:700;color:'+(f.pts>0?'var(--green2)':'#c0392b')+'">'+( f.pts>0?'+':'')+f.pts+'</div>'
+        +'<div style="width:100%;height:'+h+'px;background:'+(f.pts>0?'var(--green3)':'#fca5a5')+';border-radius:2px"></div>'
+        +'</div>';}).join('')
+    +'</div></div>'):'';
+  content.innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">'
+      +'<div style="display:flex;align-items:center;gap:12px">'
+        +'<div style="font-family:Bebas Neue,sans-serif;font-size:48px;color:var(--green);line-height:1">'+p.rating+'</div>'
+        +'<div>'
+          +'<div style="font-weight:700;font-size:18px">'+p.name+'</div>'
+          +'<div style="display:flex;gap:6px;margin-top:4px;align-items:center">'
+            +'<span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>'
+            +'<span style="font-size:13px;color:var(--muted)">'+p.nation+'</span>'
+          +'</div>'
+        +'</div>'
+      +'</div>'
+      +'<button onclick="closePlayerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">'
+      +'<div style="background:#f9fafb;border-radius:8px;padding:10px;text-align:center"><div style="font-family:Bebas Neue,sans-serif;font-size:24px;color:var(--green2)">'+totalPts+'</div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Saison-Pts</div></div>'
+      +'<div style="background:#f9fafb;border-radius:8px;padding:10px;text-align:center"><div style="font-family:Bebas Neue,sans-serif;font-size:24px;color:var(--green2)">'+avgForm+'</div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Ø Form (5)</div></div>'
+      +'<div style="background:#f9fafb;border-radius:8px;padding:10px;text-align:center"><div style="font-family:Bebas Neue,sans-serif;font-size:24px;color:var(--green2)">'+matchdayPts.length+'</div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Spieltage</div></div>'
+    +'</div>'
+    +formBars
+    +'<div style="margin-bottom:12px">'
+      +'<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Manager</div>'
+      +(owner
+        ?'<div style="display:flex;align-items:center;gap:8px">'
+          +'<div class="avatar" style="background:'+getColor(ownerIdx)+'22;color:'+getColor(ownerIdx)+';font-size:11px;width:28px;height:28px">'+getInitials(owner)+'</div>'
+          +'<span style="font-weight:500">'+owner+'</span>'
+          +(owner===myName?'<span style="font-size:10px;color:var(--green3)">Du</span>':'')
+          +'</div>'
+        :'<span style="color:var(--muted);font-size:13px">Nicht gedraftet — verfügbar!</span>')
+    +'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +(!owner&&state.phase==='draft'?'<button class="btn btn-primary" style="flex:1" onclick="closePlayerModal();'+(mockDraftActive?'mockDraftPlayer':'draftPlayer')+'('+p.id+')">+ Draften</button>':'')
+      +(!owner?'<button class="btn '+(inQueue?'btn-gold':'btn-outline')+'" style="flex:1" onclick="toggleQueue('+p.id+');openPlayerModal('+p.id+')">'+(inQueue?'★ In Watchlist':'☆ Zur Watchlist')+'</button>':'')
+      +(owner===myName?'<button class="btn btn-outline" style="flex:1" onclick="closePlayerModal();quickTrade('+p.id+')">🔄 Trade</button>':'')
+      +(owner===myName&&!isCaptain?'<button class="btn btn-gold" style="flex:1" onclick="setCaptain('+p.id+');closePlayerModal()">⭐ Captain</button>':'')
+      +(owner===myName&&isCaptain?'<button class="btn btn-gold" style="flex:1" onclick="setCaptain('+p.id+');closePlayerModal()">© Captain entfernen</button>':'')
+    +'</div>';
   modal.style.display='flex';
 }
 
