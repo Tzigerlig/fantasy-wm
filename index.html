@@ -1736,7 +1736,7 @@ function getPosLimits(squadSize){
   if(squadSize<=12)return{ST:{min:1,max:1},LA:{min:3,max:4},MI:{min:3,max:4},AN:{min:2,max:3}};
   if(squadSize<=13)return{ST:{min:1,max:2},LA:{min:3,max:4},MI:{min:3,max:5},AN:{min:2,max:3}};
   // 14 (Standard)
-  return{ST:{min:2,max:2},LA:{min:4,max:5},MI:{min:4,max:5},AN:{min:2,max:3}};
+  return{ST:{min:2,max:2},LA:{min:3,max:5},MI:{min:3,max:5},AN:{min:2,max:4}};
 }
 
 function getMyPosCounts(){
@@ -1917,11 +1917,15 @@ function updateTimerUI(){
   const timerWrap=document.getElementById('dr-timer-wrap');
   if(numEl)numEl.textContent=drPickTimeLeft;
   if(circleEl){
+    const radius=18;
+    const circumference=2*Math.PI*radius;
     const pct=drPickTimeLeft/DR_PICK_TIME;
-    circleEl.style.strokeDashoffset=113*(1-pct);
-    const col=drPickTimeLeft>30?'#4ade80':drPickTimeLeft>10?'#f0c040':'#f87171';
-    circleEl.style.stroke=col;
+    const offset=circumference*(1-pct);
+    circleEl.style.strokeDasharray=circumference;
+    circleEl.style.strokeDashoffset=offset;
+    circleEl.style.stroke=drPickTimeLeft>30?'#4ade80':drPickTimeLeft>10?'#f0c040':'#f87171';
     if(numEl)numEl.style.color=drPickTimeLeft<=10?'#f87171':drPickTimeLeft<=30?'#f0c040':'#fff';
+    circleEl.style.animation=drPickTimeLeft<=10?'pulse 0.5s infinite':'none';
   }
   if(timerWrap){
     if(drPickTimeLeft<=15)timerWrap.classList.add('dr-urgent');
@@ -2910,8 +2914,9 @@ function admSaveApiKey(){
 
 async function adminCreateTestDraft(){
   if(!confirm('Test-Draft mit 4 Demo-Managern erstellen?'))return;
-  state.managers=['Demo1','Demo2','Demo3','Demo4'];
-  state.squads={Demo1:[],Demo2:[],Demo3:[],Demo4:[]};
+  state.managers=[...new Set([myName||'Admin','Demo1','Demo2','Demo3'])];
+  state.squads={};
+  state.managers.forEach(m=>{state.squads[m]=[];});
   state.squadSize=6;
   const order=[];
   for(let r=0;r<6;r++){
