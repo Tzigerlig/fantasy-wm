@@ -182,6 +182,36 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .lsc-icon{font-size:24px;margin-bottom:6px;}
 .lsc-val{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--green);line-height:1;}
 .lsc-lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px;}
+
+/* ── HOME ────────────────────────────────────────────────────── */
+.home-hero{background:linear-gradient(160deg,#0a3d20 0%,#0d6b42 50%,#0a4a2e 100%);border-radius:var(--radius);padding:28px 24px;margin-bottom:14px;text-align:center;position:relative;overflow:hidden;box-shadow:var(--shadow-md);}
+.home-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(240,192,64,0.1) 0%,transparent 70%);}
+.home-hero-content{position:relative;z-index:1;}
+.home-trophy{font-size:48px;margin-bottom:8px;animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.home-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:2px;color:#fff;margin-bottom:4px;}
+.home-subtitle{font-size:13px;color:#9de0b8;margin-bottom:16px;letter-spacing:0.5px;}
+.wm-countdown-grid{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;}
+.wm-cd-unit{text-align:center;}
+.wm-cd-num{font-family:'Bebas Neue',sans-serif;font-size:36px;color:#f0c040;line-height:1;min-width:50px;}
+.wm-cd-lbl{font-size:9px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;}
+.wm-cd-sep{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#f0c040;opacity:0.5;margin-top:-8px;}
+.wm-cd-label{font-size:12px;color:#9de0b8;letter-spacing:0.5px;}
+.home-draft-live{display:inline-block;background:#f0c040;color:#1a1a1a;padding:8px 20px;border-radius:20px;font-weight:700;font-size:13px;cursor:pointer;margin-top:8px;}
+.home-draft-waiting{display:inline-block;background:rgba(255,255,255,0.1);color:#a7f3d0;padding:6px 16px;border-radius:20px;font-size:12px;margin-top:8px;border:1px solid rgba(255,255,255,0.15);}
+.home-draft-done{display:inline-block;background:rgba(74,222,128,0.15);color:#4ade80;padding:6px 16px;border-radius:20px;font-size:12px;margin-top:8px;border:1px solid rgba(74,222,128,0.2);}
+.home-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:500px){.home-stats-row{grid-template-columns:repeat(2,1fr);}}
+.home-stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow);transition:all 0.15s;}
+.home-stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.hsc-icon{font-size:22px;margin-bottom:4px;}
+.hsc-val{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green);line-height:1;}
+.hsc-lbl{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px;}
+.home-quick-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;margin-bottom:14px;}
+.home-quick-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;transition:all 0.15s;box-shadow:var(--shadow);}
+.home-quick-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+#nav-admin-btn{border-left:1px solid rgba(255,255,255,0.1);margin-left:4px;}
+#nav-admin-btn .nav-emoji{filter:hue-rotate(300deg);}
 .status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:20px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;transition:all 0.15s;}
 .status-pill.waiting{background:rgba(255,255,255,0.1);color:#a7f3d0;border:1px solid rgba(255,255,255,0.2);}
 .status-pill.active{background:#f0c040;color:#1a1a1a;animation:pulse 1.5s infinite;}
@@ -932,7 +962,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   </div>
 
   <nav class="nav">
-    <button class="nav-btn active" onclick="showView('setup',this)"><span class="nav-emoji">⚙️</span><span class="nav-text"> Setup</span></button>
+    <button class="nav-btn active" onclick="showView('setup',this)"><span class="nav-emoji">🏠</span><span class="nav-text"> Home</span></button>
     <button class="nav-btn" onclick="showView('draft',this)"><span class="nav-emoji">🎯</span><span class="nav-text"> Draft</span></button>
     <button class="nav-btn" onclick="showView('myteam',this)"><span class="nav-emoji">👕</span><span class="nav-text"> Team</span></button>
     <button class="nav-btn" onclick="showView('aufstellung',this)"><span class="nav-emoji">📋</span><span class="nav-text"> Aufstellung</span></button>
@@ -940,62 +970,57 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
     <button class="nav-btn" onclick="showView('live',this)"><span class="nav-emoji">🔴</span><span class="nav-text"> Live</span></button>
     <button class="nav-btn" onclick="showView('punkte',this)"><span class="nav-emoji">⚽</span><span class="nav-text"> Punkte</span></button>
     <button class="nav-btn" onclick="showView('rangliste',this)"><span class="nav-emoji">🏅</span><span class="nav-text"> Rangliste</span></button>
+    <button class="nav-btn" id="nav-admin-btn" onclick="showView('admin-direct',this)" style="display:none"><span class="nav-emoji">⚙️</span><span class="nav-text"> Admin</span></button>
   </nav>
 
   <!-- SETUP -->
   <div class="view active" id="view-setup">
 
-    <!-- HERO -->
-    <div class="setup-hero" style="position:relative;overflow:hidden">
-      <div style="position:relative;z-index:1">
-        <div style="font-size:48px;margin-bottom:8px">🏆</div>
-        <h2>FANTASY WM 2026</h2>
-        <p>🇺🇸 USA · 🇨🇦 Kanada · 🇲🇽 Mexiko · 11. Juni – 19. Juli 2026</p>
-        <div id="hero-status" style="margin-top:12px"></div>
+    <!-- HERO mit WM Countdown -->
+    <div class="home-hero">
+      <div class="home-hero-content">
+        <div class="home-trophy">🏆</div>
+        <h1 class="home-title">FANTASY WM 2026</h1>
+        <p class="home-subtitle">🇺🇸 USA · 🇨🇦 Kanada · 🇲🇽 Mexiko</p>
+        <div class="home-wm-countdown" id="home-wm-countdown"></div>
+        <div id="home-draft-status"></div>
       </div>
     </div>
 
-    <!-- COUNTDOWN -->
+    <!-- DRAFT COUNTDOWN -->
     <div id="countdown-container"></div>
 
-    <!-- LIGA STATS GRID -->
-    <div class="liga-stats-grid">
-      <div class="liga-stat-card">
-        <div class="lsc-icon">👥</div>
-        <div class="lsc-val" id="stat-managers">0</div>
-        <div class="lsc-lbl">Manager</div>
-      </div>
-      <div class="liga-stat-card">
-        <div class="lsc-icon">🎯</div>
-        <div class="lsc-val" id="stat-draft">TBD</div>
-        <div class="lsc-lbl">Draft</div>
-      </div>
-      <div class="liga-stat-card">
-        <div class="lsc-icon">⚽</div>
-        <div class="lsc-val">11. Jun</div>
-        <div class="lsc-lbl">WM-Start</div>
-      </div>
-    </div>
+    <!-- LIGA STATS -->
+    <div class="home-stats-row" id="home-stats-row"></div>
 
-    <!-- MANAGER CARD -->
+    <!-- MANAGER -->
     <div class="card">
-      <div class="card-title">👥 Manager in der Liga</div>
+      <div class="card-title">👥 Deine Liga</div>
       <div id="manager-list" class="manager-list"></div>
       <div id="manager-status-text" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="home-quick-actions" id="home-quick-actions"></div>
+
+    <!-- LETZTE AKTIVITÄT -->
+    <div class="card" id="home-activity-card">
+      <div class="card-title">⚡ Letzte Aktivität</div>
+      <div id="home-activity"></div>
     </div>
 
     <!-- LIGA TEILEN -->
     <div class="card">
       <div class="card-title">🔗 Freunde einladen</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Schick diesen Link oder zeig den QR-Code</p>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <div style="flex:1">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Schick diesen Link — kein Account nötig!</p>
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
           <div style="display:flex;gap:8px;margin-bottom:8px">
             <input type="text" id="share-link" readonly style="font-size:12px;background:#f8f8f5;flex:1">
             <button class="btn btn-primary" onclick="copyLink()">📋 Kopieren</button>
           </div>
         </div>
-        <img id="qr-code" src="" style="width:100px;height:100px;border-radius:8px;border:1px solid var(--border)" alt="QR Code">
+        <img id="qr-code" src="" style="width:80px;height:80px;border-radius:8px;border:1px solid var(--border)" alt="QR Code">
       </div>
     </div>
 
@@ -1013,7 +1038,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
     <!-- PWA INSTALL -->
     <div id="pwa-install-card" class="card" style="display:none">
       <div class="card-title">📱 App installieren</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Installiere Fantasy WM als App auf deinem Gerät — funktioniert auch offline!</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Installiere Fantasy WM als App auf deinem Gerät!</p>
       <button class="btn btn-primary" onclick="triggerInstall()">📱 Als App installieren</button>
     </div>
   </div>
@@ -1511,6 +1536,7 @@ function completeLogin(){
   if(ud)ud.textContent='👤 '+myName;
   const sl=document.getElementById('share-link');
   if(sl)sl.value=window.location.origin+window.location.pathname;
+  checkAdminTab();
   renderSetup();
   updatePhaseBadge();
   renderCountdown();
@@ -1524,48 +1550,131 @@ let rulesVisible=false;
 function renderSetup(){
   const phase=state.phase||'setup';
   const managers=state.managers||[];
+  const myRank=[...managers].sort((a,b)=>getManagerPoints(b)-getManagerPoints(a)).indexOf(myName)+1;
 
-  // Hero status pill
-  const heroStatus=document.getElementById('hero-status');
-  if(heroStatus){
-    if(phase==='draft'){
-      heroStatus.innerHTML='<div class="status-pill draft-live" onclick="showView(\'draft\',null)">🎯 Draft läuft — Jetzt mitmachen →</div>';
-    } else if(phase==='active'){
-      heroStatus.innerHTML='<div class="status-pill done">✅ Liga aktiv · '+(state.matchdays||[]).length+' Spieltage</div>';
-    } else if(state.draftScheduledFor){
-      heroStatus.innerHTML=''; // Countdown übernimmt
-      renderCountdown();
-    } else {
-      heroStatus.innerHTML='<div class="status-pill waiting">⏳ Warte auf Draft-Planung</div>';
-    }
-  }
-
-  // Stats grid
-  const statM=document.getElementById('stat-managers');
-  if(statM)statM.textContent=managers.length;
-  const statD=document.getElementById('stat-draft');
-  if(statD){
-    if(state.draftScheduledFor){
-      const d=new Date(state.draftScheduledFor);
-      statD.textContent=d.toLocaleDateString('de',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'});
-    } else if(phase==='draft'||phase==='active'){
-      statD.textContent='✅';
-    } else {
-      statD.textContent='TBD';
-    }
-  }
-
-  // Manager list
+  // ── MANAGER LIST ──────────────────────────────
   const el=document.getElementById('manager-list');
   if(el){
-    el.innerHTML=managers.length?managers.map((m,i)=>
-      '<div class="manager-chip">'+
-      '<div class="avatar" style="width:22px;height:22px;font-size:10px;background:'+getColor(i)+'20;color:'+getColor(i)+'">'+getInitials(m)+'</div>'+
-      '<span>'+m+'</span>'+(m===myName?'<span style="font-size:10px;color:var(--green3)">Du</span>':'')+
-      '</div>').join(''):'<span style="color:var(--muted);font-size:13px">Noch keine Manager</span>';
+    el.innerHTML=managers.length?managers.map((m,i)=>{
+      const isOnline=(state.onlineUsers||{})[m];
+      return '<div class="manager-chip">'
+        +'<div class="avatar" style="width:26px;height:26px;font-size:11px;position:relative;background:'+getColor(i)+'20;color:'+getColor(i)+'">'
+        +getInitials(m)
+        +'<span style="position:absolute;bottom:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:'+(isOnline?'#4ade80':'#d1d5db')+';border:1.5px solid #fff"></span>'
+        +'</div>'
+        +'<span>'+m+'</span>'
+        +(m===myName?'<span style="font-size:10px;color:var(--green3)">Du</span>':'')
+        +'</div>';
+    }).join(''):'<span style="color:var(--muted);font-size:13px">Noch keine Manager — Link teilen!</span>';
   }
 
-  // Manager status text
+  // ── SHARE LINK + QR ──────────────────────────────
+  const sl=document.getElementById('share-link');
+  if(sl)sl.value='https://tzigerlig.github.io/fantasy-wm/';
+  const qr=document.getElementById('qr-code');
+  if(qr&&!qr.src.includes('qrserver')){
+    qr.src='https://api.qrserver.com/v1/create-qr-code/?size=80x80&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent('https://tzigerlig.github.io/fantasy-wm/');
+  }
+
+  // ── WM COUNTDOWN ──────────────────────────────
+  const wmEl=document.getElementById('home-wm-countdown');
+  if(wmEl){
+    const wmStart=new Date('2026-06-11T16:00:00Z');
+    const diff=wmStart-new Date();
+    if(diff>0){
+      const days=Math.floor(diff/86400000),hours=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000);
+      wmEl.innerHTML='<div class="wm-countdown-grid">'
+        +'<div class="wm-cd-unit"><div class="wm-cd-num">'+String(days).padStart(2,'0')+'</div><div class="wm-cd-lbl">Tage</div></div>'
+        +'<div class="wm-cd-sep">:</div>'
+        +'<div class="wm-cd-unit"><div class="wm-cd-num">'+String(hours).padStart(2,'0')+'</div><div class="wm-cd-lbl">Std</div></div>'
+        +'<div class="wm-cd-sep">:</div>'
+        +'<div class="wm-cd-unit"><div class="wm-cd-num">'+String(mins).padStart(2,'0')+'</div><div class="wm-cd-lbl">Min</div></div>'
+        +'</div><div class="wm-cd-label">bis WM-Start 🇺🇸</div>';
+    } else {
+      wmEl.innerHTML='<div class="wm-cd-label" style="color:#4ade80">⚽ WM 2026 läuft!</div>';
+    }
+  }
+
+  // ── DRAFT STATUS BANNER ──────────────────────
+  const draftEl=document.getElementById('home-draft-status');
+  if(draftEl){
+    if(phase==='draft'){
+      draftEl.innerHTML='<div class="home-draft-live" onclick="showView(\'draft\',null)"><span style="animation:pulse 1s infinite;display:inline-block">🔴</span> DRAFT LÄUFT — Jetzt mitmachen →</div>';
+    } else if(phase==='active'){
+      draftEl.innerHTML='<div class="home-draft-done">✅ Draft abgeschlossen · Liga aktiv</div>';
+    } else if(state.draftScheduledFor){
+      draftEl.innerHTML='';
+    } else {
+      draftEl.innerHTML='<div class="home-draft-waiting">⏳ Warte auf Draft-Planung</div>';
+    }
+  }
+
+  // ── LIGA STATS ──────────────────────────────
+  const statsEl=document.getElementById('home-stats-row');
+  if(statsEl){
+    const draftDate=state.draftScheduledFor?
+      new Date(state.draftScheduledFor).toLocaleDateString('de',{day:'2-digit',month:'2-digit'})+' '+
+      new Date(state.draftScheduledFor).toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'}):'TBD';
+    const myPts=getManagerPoints(myName||'');
+    statsEl.innerHTML=
+      '<div class="home-stat-card"><div class="hsc-icon">👥</div><div class="hsc-val">'+managers.length+'</div><div class="hsc-lbl">Manager</div></div>'
+      +'<div class="home-stat-card"><div class="hsc-icon">🎯</div><div class="hsc-val" style="font-size:'+(draftDate.length>5?'14px':'24px')+'">'+draftDate+'</div><div class="hsc-lbl">Draft</div></div>'
+      +(myRank>0?
+        '<div class="home-stat-card"><div class="hsc-icon">🏅</div><div class="hsc-val">#'+myRank+'</div><div class="hsc-lbl">Dein Rang</div></div>':
+        '<div class="home-stat-card"><div class="hsc-icon">⚽</div><div class="hsc-val">11. Jun</div><div class="hsc-lbl">WM-Start</div></div>'
+      )
+      +'<div class="home-stat-card"><div class="hsc-icon">💰</div><div class="hsc-val">'+myPts+'</div><div class="hsc-lbl">Punkte</div></div>';
+  }
+
+  // ── QUICK ACTIONS ──────────────────────────
+  const qaEl=document.getElementById('home-quick-actions');
+  if(qaEl){
+    const actions=[];
+    if(phase==='draft')actions.push({icon:'🎯',label:'Draft',color:'#166534',bg:'#f0fdf4',onclick:"showView('draft',null)"});
+    if(phase==='active'&&state.squads&&state.squads[myName]&&state.squads[myName].length){
+      actions.push({icon:'👕',label:'Mein Team',color:'#1e40af',bg:'#eff6ff',onclick:"showView('myteam',null)"});
+      actions.push({icon:'📋',label:'Aufstellung',color:'#166534',bg:'#f0fdf4',onclick:"showView('aufstellung',null)"});
+    }
+    const pendingTrades=(state.tradeOffers||[]).filter(o=>o.to===myName&&o.status==='pending').length;
+    actions.push({icon:'🔄',label:'Trade'+(pendingTrades>0?' ('+pendingTrades+')':''),color:pendingTrades>0?'#c0392b':'#374151',bg:pendingTrades>0?'#fef2f2':'#f9fafb',onclick:"showView('trade',null)"});
+    actions.push({icon:'🏅',label:'Rangliste',color:'#854d0e',bg:'#fef9c3',onclick:"showView('rangliste',null)"});
+    if(phase==='setup'||phase==='draft'){
+      actions.push({icon:'🎭',label:'Mock Draft',color:'#6d28d9',bg:'#f5f3ff',onclick:"showView('draft',null);setTimeout(()=>typeof toggleMockDraft==='function'&&toggleMockDraft(),500)"});
+    }
+    qaEl.innerHTML=actions.map(a=>
+      '<button class="home-quick-btn" style="color:'+a.color+';background:'+a.bg+'" onclick="'+a.onclick+'">'
+      +'<span style="font-size:22px">'+a.icon+'</span>'
+      +'<span>'+a.label+'</span>'
+      +'</button>'
+    ).join('');
+  }
+
+  // ── LETZTE AKTIVITÄT ──────────────────────
+  const actEl=document.getElementById('home-activity');
+  if(actEl){
+    const activities=[];
+    (state.tradeHistory||[]).slice(0,2).forEach(t=>{
+      activities.push({icon:'🔄',text:t.from+' → '+t.to+': '+(t.fromGave||[]).join(', '),time:t.date||''});
+    });
+    (state.matchdays||[]).slice(-2).reverse().forEach(md=>{
+      activities.push({icon:'⚽',text:md.name+' · '+md.entries.length+' Spieler',time:md.date||''});
+    });
+    if(phase==='draft'&&state.draftPick>0){
+      const lastManager=(state.draftOrder||[])[state.draftPick-1];
+      const lastSquad=state.squads[lastManager]||[];
+      const lastPlayer=PLAYERS.find(p=>p.id===lastSquad[lastSquad.length-1]);
+      if(lastPlayer)activities.unshift({icon:'🎯',text:lastManager+' hat '+lastPlayer.name+' gedraftet',time:'Gerade eben'});
+    }
+    actEl.innerHTML=activities.length?activities.slice(0,4).map(a=>
+      '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
+      +'<span style="font-size:18px">'+a.icon+'</span>'
+      +'<div style="flex:1"><div style="font-size:13px">'+a.text+'</div></div>'
+      +'<div style="font-size:11px;color:var(--muted);white-space:nowrap">'+a.time+'</div>'
+      +'</div>'
+    ).join(''):'<div style="color:var(--muted);font-size:13px;padding:8px 0">Noch keine Aktivität — Liga startet bald! 🚀</div>';
+  }
+
+  // ── MANAGER STATUS ──────────────────────────
   const mst=document.getElementById('manager-status-text');
   if(mst){
     const count=managers.length;
@@ -1575,23 +1684,11 @@ function renderSetup(){
     else mst.innerHTML=count+' von mind. 4 · <span style="color:var(--muted)">Warte auf weitere Mitspieler...</span>';
   }
 
-  // Share link + QR code
-  const shareUrl=window.location.origin+'/fantasy-wm/';
-  const sl=document.getElementById('share-link');
-  if(sl)sl.value=shareUrl;
-  const qr=document.getElementById('qr-code');
-  if(qr){
-    qr.src='https://api.qrserver.com/v1/create-qr-code/?size=120x120&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent('https://tzigerlig.github.io/fantasy-wm/');
-    qr.style.width='120px';
-    qr.style.height='120px';
-  }
-
-  // Rules visibility
+  // ── RULES ──────────────────────────────────
   const rulesBody=document.getElementById('rules-body');
   const rulesBtn=document.getElementById('rules-toggle-btn');
   if(rulesBody)rulesBody.style.display=rulesVisible?'block':'none';
   if(rulesBtn)rulesBtn.textContent=rulesVisible?'verstecken':'anzeigen';
-
   renderRules();
   renderScoringDisplay();
 }
@@ -1690,7 +1787,14 @@ function refreshCurrentView(){
   }catch(e){}
 }
 
+function checkAdminTab(){
+  const isAdmin=localStorage.getItem('fwm_is_admin')==='true';
+  const adminBtn=document.getElementById('nav-admin-btn');
+  if(adminBtn)adminBtn.style.display=isAdmin?'flex':'none';
+}
+
 function showView(id,btn){
+  if(id==='admin-direct'){openAdmin();return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   const v=document.getElementById('view-'+id);
@@ -2595,8 +2699,12 @@ function showAdminLogin(){
 
 function checkAdminPw(){
   const pw=document.getElementById('admin-pw')?.value||'';
-  if(pw===ADMIN_PW||pw===myName){document.getElementById('admin-overlay')?.remove();showAdminPanel();}
-  else toast('Falsches Passwort!');
+  if(pw===ADMIN_PW||pw===myName){
+    localStorage.setItem('fwm_is_admin','true');
+    checkAdminTab();
+    document.getElementById('admin-overlay')?.remove();
+    showAdminPanel();
+  } else toast('Falsches Passwort!');
 }
 
 let currentAdminTab='liga';
@@ -3995,6 +4103,22 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closePlayerModal();}
 
 // ── COUNTDOWN ─────────────────────────────────────────────────────
 function renderCountdown(){
+  const wmEl=document.getElementById('home-wm-countdown');
+  if(wmEl&&document.querySelector('#view-setup.active')){
+    const wmDiff=new Date('2026-06-11T16:00:00Z')-Date.now();
+    if(wmDiff>0){
+      const wd=Math.floor(wmDiff/86400000),wh=Math.floor((wmDiff%86400000)/3600000),wm=Math.floor((wmDiff%3600000)/60000),ws=Math.floor((wmDiff%60000)/1000);
+      wmEl.innerHTML='<div class="wm-countdown-grid">'
+        +'<div class="wm-cd-unit"><div class="wm-cd-num">'+String(wd).padStart(2,'0')+'</div><div class="wm-cd-lbl">Tage</div></div>'
+        +'<div class="wm-cd-sep">:</div>'
+        +'<div class="wm-cd-unit"><div class="wm-cd-num">'+String(wh).padStart(2,'0')+'</div><div class="wm-cd-lbl">Std</div></div>'
+        +'<div class="wm-cd-sep">:</div>'
+        +'<div class="wm-cd-unit"><div class="wm-cd-num">'+String(wm).padStart(2,'0')+'</div><div class="wm-cd-lbl">Min</div></div>'
+        +'<div class="wm-cd-sep">:</div>'
+        +'<div class="wm-cd-unit"><div class="wm-cd-num">'+String(ws).padStart(2,'0')+'</div><div class="wm-cd-lbl">Sek</div></div>'
+        +'</div><div class="wm-cd-label">bis WM-Start 🇺🇸</div>';
+    }else{wmEl.innerHTML='<div class="wm-cd-label">🏆 WM 2026 läuft!</div>';}
+  }
   const el=document.getElementById('countdown-container');if(!el)return;
   if(!state.draftScheduledFor||state.phase!=='setup'){el.innerHTML='';return;}
   const diff=new Date(state.draftScheduledFor)-Date.now();
@@ -4061,6 +4185,8 @@ async function init(){
     } else {
       const ud=document.getElementById('user-display');if(ud)ud.textContent='👤 '+myName;
     }
+    localStorage.setItem('fwm_is_admin','true');
+    checkAdminTab();
     renderSetup();updatePhaseBadge();openAdmin();
     return;
   }
