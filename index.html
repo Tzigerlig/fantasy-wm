@@ -4237,7 +4237,7 @@ function renderCountdown(){
 }
 
 // ── SPIELPLAN ────────────────────────────────────────────────────
-const WM_GROUPS={
+const SPIELPLAN_GROUPS={
   A:['Gastgeberland','Ecuador','Senegal','Niederlande'],
   B:['England','Iran','USA','Wales'],
   C:['Argentinien','Polen','Saudi-Arabien','Mexiko'],
@@ -4248,7 +4248,7 @@ const WM_GROUPS={
   H:['Portugal','Uruguay','Südkorea','Ghana']
 };
 
-const WM_FIXTURES=[
+const SPIELPLAN_FIXTURES=[
   {date:'2026-06-11',time:'21:00',home:'Gastgeberland',away:'Ecuador',group:'A',venue:'MetLife, New York'},
   {date:'2026-06-12',time:'15:00',home:'England',away:'Iran',group:'B',venue:'SoFi, Los Angeles'},
   {date:'2026-06-12',time:'18:00',home:'Senegal',away:'Niederlande',group:'A',venue:'AT&T, Dallas'},
@@ -4277,7 +4277,7 @@ function renderSpielplanTab(tab){
   const el=document.getElementById('spielplan-content');if(!el)return;
   if(tab==='fixtures'){
     const grouped={};
-    WM_FIXTURES.forEach(f=>{if(!grouped[f.date])grouped[f.date]=[];grouped[f.date].push(f);});
+    SPIELPLAN_FIXTURES.forEach(f=>{if(!grouped[f.date])grouped[f.date]=[];grouped[f.date].push(f);});
     const mySquad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
     let html='';
     Object.entries(grouped).sort().forEach(([date,games])=>{
@@ -4312,7 +4312,7 @@ function renderSpielplanTab(tab){
     el.innerHTML=html||'<div class="empty-state">Keine Spiele</div>';
   } else if(tab==='groups'){
     let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">';
-    Object.entries(WM_GROUPS).forEach(([group,teams])=>{
+    Object.entries(SPIELPLAN_GROUPS).forEach(([group,teams])=>{
       html+='<div class="card" style="padding:12px">';
       html+='<div style="font-family:Bebas Neue,sans-serif;font-size:16px;color:var(--green);margin-bottom:8px">Gruppe '+group+'</div>';
       teams.forEach((team,i)=>{
