@@ -76,10 +76,15 @@ h1,h2,h3,.bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:0.5px;}
   letter-spacing:0.3px;
 }
 .nav-btn:hover{color:#fff;background:rgba(255,255,255,0.05);}
-@media(max-width:600px){
-  .nav-btn{padding:11px 9px;font-size:11px;}
-  .nav-btn .nav-emoji{font-size:16px;display:block;}
-  .nav-btn .nav-text{display:none;}
+.nav-emoji{font-size:16px;}
+.nav-text{margin-left:4px;}
+@media(max-width:700px){
+  .nav-btn{padding:10px 8px;font-size:11px;}
+  .nav-text{display:none;}
+  .nav-emoji{font-size:18px;}
+}
+@media(min-width:701px) and (max-width:900px){
+  .nav-btn{padding:10px 10px;font-size:11px;}
 }
 .nav-btn.active{color:#f0c040;border-bottom-color:#f0c040;background:rgba(240,192,64,0.05);}
 
@@ -929,7 +934,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
     <button class="nav-btn" onclick="showView('draft',this)"><span class="nav-emoji">🎯</span><span class="nav-text"> Draft</span></button>
     <button class="nav-btn" onclick="showView('myteam',this)"><span class="nav-emoji">👕</span><span class="nav-text"> Team</span></button>
     <button class="nav-btn" onclick="showView('aufstellung',this)"><span class="nav-emoji">📋</span><span class="nav-text"> Aufstellung</span></button>
-    <button class="nav-btn" onclick="showView('trade',this)"><span class="nav-emoji">🔄</span><span class="nav-text"> Trade</span> <span id="nav-trade-badge" style="display:none;background:#c62828;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:3px;vertical-align:middle"></span></button>
+    <button class="nav-btn" onclick="showView('trade',this)"><span class="nav-emoji">🔄</span><span class="nav-text"> Trade<span id="nav-trade-badge" style="display:none;background:#c62828;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:3px;vertical-align:middle"></span></span></button>
     <button class="nav-btn" onclick="showView('live',this)"><span class="nav-emoji">🔴</span><span class="nav-text"> Live</span></button>
     <button class="nav-btn" onclick="showView('punkte',this)"><span class="nav-emoji">⚽</span><span class="nav-text"> Punkte</span></button>
     <button class="nav-btn" onclick="showView('rangliste',this)"><span class="nav-emoji">🏅</span><span class="nav-text"> Rangliste</span></button>
@@ -1573,7 +1578,11 @@ function renderSetup(){
   const sl=document.getElementById('share-link');
   if(sl)sl.value=shareUrl;
   const qr=document.getElementById('qr-code');
-  if(qr)qr.src='https://api.qrserver.com/v1/create-qr-code/?size=100x100&data='+encodeURIComponent(shareUrl);
+  if(qr){
+    qr.src='https://api.qrserver.com/v1/create-qr-code/?size=120x120&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent('https://tzigerlig.github.io/fantasy-wm/');
+    qr.style.width='120px';
+    qr.style.height='120px';
+  }
 
   // Rules visibility
   const rulesBody=document.getElementById('rules-body');
@@ -1722,31 +1731,37 @@ const DR_PICK_TIME=90; // seconds per pick
 
 // Position limits based on squad size
 function getPosLimits(squadSize){
-  if(squadSize<=11) return {ST:{min:1,max:1},LA:{min:3,max:4},MI:{min:3,max:4},AN:{min:2,max:3}};
-  if(squadSize<=13) return {ST:{min:1,max:2},LA:{min:3,max:5},MI:{min:3,max:5},AN:{min:2,max:4}};
-  return {ST:{min:2,max:2},LA:{min:4,max:5},MI:{min:4,max:5},AN:{min:3,max:4}};
+  squadSize=squadSize||14;
+  if(squadSize<=11)return{ST:{min:1,max:1},LA:{min:3,max:4},MI:{min:2,max:4},AN:{min:2,max:3}};
+  if(squadSize<=12)return{ST:{min:1,max:1},LA:{min:3,max:4},MI:{min:3,max:4},AN:{min:2,max:3}};
+  if(squadSize<=13)return{ST:{min:1,max:2},LA:{min:3,max:4},MI:{min:3,max:5},AN:{min:2,max:3}};
+  // 14 (Standard)
+  return{ST:{min:2,max:2},LA:{min:4,max:5},MI:{min:4,max:5},AN:{min:2,max:3}};
 }
 
 function getMyPosCounts(){
-  const squad=state.squads[myName]||[];
+  const squad=(mockDraftActive&&mockDraftState)
+    ?(mockDraftState.squads[myName]||[])
+    :(state.squads[myName]||[]);
   const counts={ST:0,LA:0,MI:0,AN:0};
-  squad.forEach(id=>{const p=PLAYERS.find(x=>x.id===id);if(p)counts[p.pos]++;});
+  squad.forEach(id=>{const p=PLAYERS.find(x=>x.id===id);if(p&&counts[p.pos]!==undefined)counts[p.pos]++;});
   return counts;
 }
 
 function canDraftPos(pos){
-  const limits=getPosLimits(state.squadSize||14);
+  const squadSize=state.squadSize||14;
+  const limits=getPosLimits(squadSize);
   const counts=getMyPosCounts();
   const limit=limits[pos];
-  if(!limit)return true;
+  if(!limit)return false;
   if(counts[pos]>=limit.max)return false;
-  const squad=state.squads[myName]||[];
-  const remaining=(state.squadSize||14)-squad.length-1;
-  let mandatoryRemaining=0;
+  const mySquad=state.squads[myName]||[];
+  const picksLeft=squadSize-mySquad.length-1;
+  let mandatoryNeeded=0;
   Object.entries(limits).forEach(([p2,lim])=>{
-    if(p2!==pos)mandatoryRemaining+=Math.max(0,lim.min-counts[p2]);
+    if(p2!==pos)mandatoryNeeded+=Math.max(0,lim.min-counts[p2]);
   });
-  return remaining>=mandatoryRemaining;
+  return picksLeft>=mandatoryNeeded;
 }
 
 function getDraftedIds(){
@@ -1801,6 +1816,8 @@ function updateDraftHeader(){
     const myLen=(ds.squads[myName]||[]).length;
     squadCount.textContent=myLen+'/'+(ds.squadSize||14);
   }
+  const mockBtn=document.getElementById('mock-draft-btn');
+  if(mockBtn)mockBtn.style.display='inline-flex';
 
   if(!total||ds.phase==='setup'){
     if(nameEl)nameEl.textContent='Draft nicht gestartet';
@@ -2007,11 +2024,23 @@ async function runMockAutoDraft(){
     const posCounts={ST:0,LA:0,MI:0,AN:0};
     managerSquad.forEach(id=>{const p=PLAYERS.find(x=>x.id===id);if(p)posCounts[p.pos]++;});
     const limits=getPosLimits(mockDraftState.squadSize||14);
+    const mockSquadSize=mockDraftState.squadSize||14;
+    const mockPicksLeft=mockSquadSize-managerSquad.length;
     const available=[...PLAYERS].filter(p=>{
       if(draftedIds.has(p.id))return false;
       const lim=limits[p.pos];
-      return lim?posCounts[p.pos]<lim.max:true;
+      if(!lim||posCounts[p.pos]>=lim.max)return false;
+      const remainingAfter=mockPicksLeft-1;
+      let mandatoryNeeded=0;
+      Object.entries(limits).forEach(([pp,lim2])=>{
+        if(pp!==p.pos)mandatoryNeeded+=Math.max(0,lim2.min-posCounts[pp]);
+      });
+      return remainingAfter>=mandatoryNeeded;
     }).sort((a,b)=>b.rating-a.rating);
+    if(!available.length){
+      const fallback=[...PLAYERS].filter(p=>!draftedIds.has(p.id)).sort((a,b)=>b.rating-a.rating);
+      if(fallback.length)available.push(fallback[0]);
+    }
     if(!available.length)return;
     mockDraftState.squads[manager].push(available[0].id);
     mockDraftState.draftPick=currentPick+1;
@@ -2038,12 +2067,15 @@ async function mockDraftPlayer(playerId){
   Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
   if(draftedIds.has(playerId)){toast('Bereits gedraftet!');return;}
   const p=PLAYERS.find(x=>x.id===playerId);
-  if(!p)return;
+  if(!p){toast('Spieler nicht gefunden!');return;}
   const myMockSquad=mockDraftState.squads[myName]||[];
-  const posCounts={ST:0,LA:0,MI:0,AN:0};
-  myMockSquad.forEach(id=>{const pp=PLAYERS.find(x=>x.id===id);if(pp)posCounts[pp.pos]++;});
-  const limits=getPosLimits(mockDraftState.squadSize||14);
-  if(posCounts[p.pos]>=(limits[p.pos]?.max||99)){toast('Positionslimit erreicht!');return;}
+  const mockLimits=getPosLimits(mockDraftState.squadSize||14);
+  const mockCounts={ST:0,LA:0,MI:0,AN:0};
+  myMockSquad.forEach(id=>{const pp=PLAYERS.find(x=>x.id===id);if(pp)mockCounts[pp.pos]++;});
+  if(mockCounts[p.pos]>=(mockLimits[p.pos]?.max||99)){
+    toast('⚠️ '+POS_LABEL[p.pos]+': Maximum '+(mockLimits[p.pos]?.max||'?')+' erreicht!');
+    return;
+  }
   mockDraftState.squads[myName].push(playerId);
   mockDraftState.draftPick=pick+1;
   if(mockDraftState.draftPick>=order.length){
@@ -2111,16 +2143,25 @@ async function runAutoDraft(){
       if(p) posCounts[p.pos]++;
     });
 
+    const picksLeft = squadSize - managerSquad.length;
     const available = [...PLAYERS]
       .filter(p => {
         if(drafted.has(p.id)) return false;
         const lim = limits[p.pos];
-        if(!lim) return true;
-        if(posCounts[p.pos] >= lim.max) return false;
-        return true;
+        if(!lim || posCounts[p.pos] >= lim.max) return false;
+        const remainingAfter = picksLeft - 1;
+        let mandatoryNeeded = 0;
+        Object.entries(limits).forEach(([pp, lim2]) => {
+          if(pp !== p.pos) mandatoryNeeded += Math.max(0, lim2.min - posCounts[pp]);
+        });
+        return remainingAfter >= mandatoryNeeded;
       })
       .sort((a,b) => b.rating - a.rating);
 
+    if(!available.length){
+      const fallback=[...PLAYERS].filter(p=>!drafted.has(p.id)).sort((a,b)=>b.rating-a.rating);
+      if(fallback.length)available.push(fallback[0]);
+    }
     if(!available.length){
       console.log('Auto-draft: keine Spieler verfügbar für', manager);
       return;
@@ -2185,10 +2226,11 @@ function renderDraftPool(){
   // Limits bar
   const limBar=document.getElementById('draft-limits-bar');
   if(limBar){
+    const SHORT_LABEL={ST:'TW',LA:'ABW',MI:'MID',AN:'STU'};
     const pills=Object.entries(limits).map(([pos,lim])=>{
       const c=counts[pos]||0;
       const cls=c>=lim.max?'full':c>=lim.min?'ok':'warn';
-      return '<span class="limit-pill '+cls+'">'+POS_LABEL[pos]+' '+c+'/'+lim.max+'</span>';
+      return '<span class="limit-pill '+cls+'">'+SHORT_LABEL[pos]+' '+c+'/'+lim.max+(c<lim.min?' ⚠':c>=lim.max?' ✓':'')+'</span>';
     });
     limBar.innerHTML='<div class="limits-bar">'+pills.join('')+'</div>';
   }
@@ -2292,7 +2334,7 @@ function renderDraftBoardTable(){
         }
       }
       if(pickedPlayer){
-        html+='<td><div class="dr-board-cell"><span class="bc-name">'+pickedPlayer.name.split(' ').pop()+'</span><span class="bc-pos pos-badge pos-'+pickedPlayer.pos+'" style="font-size:8px">'+POS_LABEL[pickedPlayer.pos]+'</span><span style="font-size:9px;color:rgba(255,255,255,0.35);margin-left:2px">'+pickedPlayer.rating+'</span></div></td>';
+        html+='<td><div class="dr-board-cell"><span class="bc-name">'+pickedPlayer.name.split(' ').pop()+'</span><span class="bc-pos pos-badge pos-'+pickedPlayer.pos+'" style="font-size:8px">'+POS_LABEL[pickedPlayer.pos]+'</span><span style="font-size:9px;color:#4ade80;font-family:\'Bebas Neue\',sans-serif">'+pickedPlayer.rating+'</span></div></td>';
       } else if(isCurrent){
         html+='<td><div class="dr-board-cell current"><span style="font-size:16px">⏳</span></div></td>';
       } else {
@@ -2377,8 +2419,13 @@ async function draftPlayer(playerId,isAuto){
   if(state.draftOrder[currentPick]!==myName){toast('Du bist nicht dran!');return;}
   if(getDraftedIds().has(playerId)){toast('Bereits gedraftet!');return;}
   const p=PLAYERS.find(x=>x.id===playerId);
-  if(!p)return;
-  if(!canDraftPos(p.pos)){toast('⚠️ Positionslimit erreicht für '+POS_LABEL[p.pos]+'!');return;}
+  if(!p){toast('Spieler nicht gefunden!');return;}
+  if(!canDraftPos(p.pos)){
+    const limits=getPosLimits(state.squadSize||14);
+    const counts=getMyPosCounts();
+    toast('⚠️ '+POS_LABEL[p.pos]+': Maximum '+(limits[p.pos]?.max||'?')+' erreicht!');
+    return;
+  }
   stopPickTimer();
   state.squads[myName].push(playerId);
   state.draftPick=(state.draftPick||0)+1;
@@ -2398,13 +2445,13 @@ function renderDraftBoard(){}// compat
 const POS_LABEL={ST:'TW',LA:'Abwehr',MI:'Mittelfeld',AN:'Angriff'};
 
 const PLAYERS=[
-  {id:1,name:'Alisson Becker',nation:'Brasilien',pos:'ST',rating:92},
+  {id:1,name:'Alisson Becker',nation:'Brasilien',pos:'ST',rating:91},
   {id:2,name:'Ederson',nation:'Brasilien',pos:'ST',rating:90},
-  {id:3,name:'Thibaut Courtois',nation:'Belgien',pos:'ST',rating:91},
-  {id:4,name:'Manuel Neuer',nation:'Deutschland',pos:'ST',rating:87},
+  {id:3,name:'Thibaut Courtois',nation:'Belgien',pos:'ST',rating:90},
+  {id:4,name:'Manuel Neuer',nation:'Deutschland',pos:'ST',rating:88},
   {id:5,name:'Marc-André ter Stegen',nation:'Deutschland',pos:'ST',rating:88},
-  {id:6,name:'Jan Oblak',nation:'Slowenien',pos:'ST',rating:89},
-  {id:7,name:'Gianluigi Donnarumma',nation:'Italien',pos:'ST',rating:90},
+  {id:6,name:'Jan Oblak',nation:'Slowenien',pos:'ST',rating:88},
+  {id:7,name:'Gianluigi Donnarumma',nation:'Italien',pos:'ST',rating:89},
   {id:8,name:'Mike Maignan',nation:'Frankreich',pos:'ST',rating:88},
   {id:9,name:'Yann Sommer',nation:'Schweiz',pos:'ST',rating:87},
   {id:10,name:'Jordan Pickford',nation:'England',pos:'ST',rating:86},
@@ -2414,7 +2461,7 @@ const PLAYERS=[
   {id:14,name:'André Onana',nation:'Kamerun',pos:'ST',rating:85},
   {id:15,name:'Bono',nation:'Marokko',pos:'ST',rating:84},
   {id:16,name:'Emiliano Martínez',nation:'Argentinien',pos:'ST',rating:89},
-  {id:17,name:'Virgil van Dijk',nation:'Niederlande',pos:'LA',rating:91},
+  {id:17,name:'Virgil van Dijk',nation:'Niederlande',pos:'LA',rating:90},
   {id:18,name:'Rúben Dias',nation:'Portugal',pos:'LA',rating:90},
   {id:19,name:'Marquinhos',nation:'Brasilien',pos:'LA',rating:89},
   {id:20,name:'William Saliba',nation:'Frankreich',pos:'LA',rating:88},
@@ -2445,7 +2492,7 @@ const PLAYERS=[
   {id:45,name:'Luka Modrić',nation:'Kroatien',pos:'MI',rating:88},
   {id:46,name:'Joshua Kimmich',nation:'Deutschland',pos:'MI',rating:88},
   {id:47,name:'Toni Kroos',nation:'Deutschland',pos:'MI',rating:87},
-  {id:48,name:'Pedri',nation:'Spanien',pos:'MI',rating:90},
+  {id:48,name:'Pedri',nation:'Spanien',pos:'MI',rating:88},
   {id:49,name:'Gavi',nation:'Spanien',pos:'MI',rating:88},
   {id:50,name:'Jude Bellingham',nation:'England',pos:'MI',rating:91},
   {id:51,name:'Declan Rice',nation:'England',pos:'MI',rating:87},
@@ -2469,13 +2516,13 @@ const PLAYERS=[
   {id:69,name:'Granit Xhaka',nation:'Schweiz',pos:'MI',rating:83},
   {id:70,name:'Lamine Yamal',nation:'Spanien',pos:'MI',rating:87},
   {id:71,name:'Florian Wirtz',nation:'Deutschland',pos:'AN',rating:88},
-  {id:72,name:'Jamal Musiala',nation:'Deutschland',pos:'AN',rating:89},
-  {id:73,name:'Kylian Mbappé',nation:'Frankreich',pos:'AN',rating:96},
-  {id:74,name:'Erling Haaland',nation:'Norwegen',pos:'AN',rating:95},
-  {id:75,name:'Lionel Messi',nation:'Argentinien',pos:'AN',rating:93},
+  {id:72,name:'Jamal Musiala',nation:'Deutschland',pos:'AN',rating:88},
+  {id:73,name:'Kylian Mbappé',nation:'Frankreich',pos:'AN',rating:95},
+  {id:74,name:'Erling Haaland',nation:'Norwegen',pos:'AN',rating:94},
+  {id:75,name:'Lionel Messi',nation:'Argentinien',pos:'AN',rating:91},
   {id:76,name:'Cristiano Ronaldo',nation:'Portugal',pos:'AN',rating:90},
   {id:77,name:'Vinicius Jr.',nation:'Brasilien',pos:'AN',rating:93},
-  {id:78,name:'Harry Kane',nation:'England',pos:'AN',rating:91},
+  {id:78,name:'Harry Kane',nation:'England',pos:'AN',rating:90},
   {id:79,name:'Bukayo Saka',nation:'England',pos:'AN',rating:88},
   {id:80,name:'Rafael Leão',nation:'Portugal',pos:'AN',rating:87},
   {id:81,name:'Gonçalo Ramos',nation:'Portugal',pos:'AN',rating:84},
@@ -2496,7 +2543,9 @@ const PLAYERS=[
   {id:96,name:'Youssef En-Nesyri',nation:'Marokko',pos:'AN',rating:82},
   {id:97,name:'Gabriel Martinelli',nation:'Brasilien',pos:'AN',rating:85},
   {id:98,name:'Sadio Mané',nation:'Senegal',pos:'AN',rating:86},
-  {id:99,name:'Rodri',nation:'Spanien',pos:'AN',rating:90},
+  {id:99,name:'Rodri',nation:'Spanien',pos:'MI',rating:91},
+  {id:100,name:'Robert Lewandowski',nation:'Polen',pos:'AN',rating:89},
+  {id:101,name:'Son Heung-min',nation:'Südkorea',pos:'AN',rating:88},
 ];
 
 // ── ADMIN ─────────────────────────────────────────────────────────
