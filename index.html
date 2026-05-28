@@ -2192,12 +2192,13 @@ async function runMockAutoDraft(){
 }
 
 async function mockDraftPlayer(playerId){
-  stopPickTimer();
   if(!mockDraftActive||!mockDraftState)return;
   const pick=mockDraftState.draftPick||0;
   const order=mockDraftState.draftOrder||[];
   if(pick>=order.length)return;
-  if(!order[pick]||!myName||order[pick].trim().toLowerCase()!==myName.trim().toLowerCase()){toast('Nicht dein Turn! '+order[pick]+' ist dran.');return;}
+  const currentManager=order[pick];
+  if(currentManager!==myName){toast('❌ '+currentManager+' ist dran, nicht du!');return;}
+  stopPickTimer();
   const draftedIds=new Set();
   Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
   if(draftedIds.has(playerId)){toast('Bereits gedraftet!');return;}
@@ -2351,7 +2352,9 @@ function renderDraftPool(){
   const search=(document.getElementById('draft-search')||{}).value||'';
   const el=document.getElementById('draft-pool');
   if(!el)return;
-  const isMyTurn=ds.phase==='draft'&&ds.draftOrder&&ds.draftOrder[ds.draftPick||0]===myName;
+  const currentPick=ds.draftPick||0;
+  const currentManager=(ds.draftOrder||[])[currentPick];
+  const isMyTurn=currentManager===myName;
   // Position counts for my squad in active state
   const mySquad=ds.squads[myName]||[];
   const counts={ST:0,LA:0,MI:0,AN:0};
@@ -2405,7 +2408,7 @@ function renderDraftPool(){
       ?'<div class="dr-action-btn dr-drafted-icon">✓</div>'
       :isMyTurn&&posOk
         ?'<div class="dr-action-btn dr-draft-btn" onclick="event.stopPropagation();'+draftFn+'('+p.id+')">+</div>'
-        :'<div class="dr-action-btn dr-drafted-icon" style="opacity:0.3">+</div>';
+        :'<div class="dr-action-btn dr-drafted-icon" style="opacity:0.2">−</div>';
     const queueBtn=isDrafted?''
       :'<div class="dr-action-btn dr-queue-btn'+(inQueue?' in-queue':'')+'" onclick="event.stopPropagation();toggleQueue('+p.id+')" title="'+(inQueue?'Aus Watchlist entfernen':'Zur Watchlist hinzufügen')+'">'+(inQueue?'★':'☆')+'</div>';
     const rowTitle=limitReached?'Positionslimit erreicht für '+POS_LABEL[p.pos]:'';
