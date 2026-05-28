@@ -212,6 +212,12 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .home-quick-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
 #nav-admin-btn{border-left:1px solid rgba(255,255,255,0.1);margin-left:4px;}
 #nav-admin-btn .nav-emoji{filter:hue-rotate(300deg);}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);padding:6px 0 max(6px,env(safe-area-inset-bottom));z-index:100;box-shadow:0 -2px 10px rgba(0,0,0,0.08);}
+@media(max-width:640px){.bottom-nav{display:flex;}.nav{display:none;}#app{padding-bottom:64px;}}
+.bn-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--muted);position:relative;padding:4px 0;transition:color 0.15s;}
+.bn-btn.active{color:var(--green);}
+.bn-icon{font-size:22px;line-height:1;}
+.bn-label{font-size:10px;font-weight:600;letter-spacing:0.3px;}
 .status-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:20px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;transition:all 0.15s;}
 .status-pill.waiting{background:rgba(255,255,255,0.1);color:#a7f3d0;border:1px solid rgba(255,255,255,0.2);}
 .status-pill.active{background:#f0c040;color:#1a1a1a;animation:pulse 1.5s infinite;}
@@ -1208,6 +1214,29 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
       <div id="top-players-list"></div>
     </div>
   </div>
+
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bn-btn active" onclick="showView('setup',this)" id="bn-setup">
+      <span class="bn-icon">🏠</span>
+      <span class="bn-label">Home</span>
+    </button>
+    <button class="bn-btn" onclick="showView('draft',this)" id="bn-draft">
+      <span class="bn-icon">🎯</span>
+      <span class="bn-label">Draft</span>
+    </button>
+    <button class="bn-btn" onclick="showView('myteam',this)" id="bn-team">
+      <span class="bn-icon">👕</span>
+      <span class="bn-label">Team</span>
+    </button>
+    <button class="bn-btn" onclick="showView('trade',this)" id="bn-trade">
+      <span class="bn-icon">🔄</span>
+      <span class="bn-label">Trade<span id="bn-trade-badge" style="display:none;position:absolute;top:4px;right:10px;background:#c62828;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:8px"></span></span>
+    </button>
+    <button class="bn-btn" onclick="showView('rangliste',this)" id="bn-rank">
+      <span class="bn-icon">🏅</span>
+      <span class="bn-label">Rangliste</span>
+    </button>
+  </nav>
 </div>
 
 <div id="admin-panel" class="admin-panel" style="display:none">
@@ -1800,6 +1829,10 @@ function showView(id,btn){
   const v=document.getElementById('view-'+id);
   if(v)v.classList.add('active');
   if(btn)btn.classList.add('active');
+  const bnMap={setup:'bn-setup',draft:'bn-draft',myteam:'bn-team',trade:'bn-trade',rangliste:'bn-rank'};
+  document.querySelectorAll('.bn-btn').forEach(b=>b.classList.remove('active'));
+  const bnBtn=document.getElementById(bnMap[id]);
+  if(bnBtn)bnBtn.classList.add('active');
   if(id==='myteam')renderMyTeam();
   else if(id==='aufstellung')renderAufstellung();
   else if(id==='draft')renderDraftView();
@@ -3600,6 +3633,11 @@ function updateTradeBadge(){
   if(navBadge){
     if(n>0){navBadge.textContent=n;navBadge.style.display='inline';}
     else{navBadge.style.display='none';}
+  }
+  const bnBadge=document.getElementById('bn-trade-badge');
+  if(bnBadge){
+    if(n>0){bnBadge.textContent=n;bnBadge.style.display='block';}
+    else{bnBadge.style.display='none';}
   }
 }
 
