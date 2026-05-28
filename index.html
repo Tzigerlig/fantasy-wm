@@ -973,11 +973,9 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
     <button class="nav-btn active" onclick="showView('setup',this)"><span class="nav-emoji">🏠</span><span class="nav-text"> Home</span></button>
     <button class="nav-btn" onclick="showView('draft',this)"><span class="nav-emoji">🎯</span><span class="nav-text"> Draft</span></button>
     <button class="nav-btn" onclick="showView('myteam',this)"><span class="nav-emoji">👕</span><span class="nav-text"> Team</span></button>
-    <button class="nav-btn" onclick="showView('aufstellung',this)"><span class="nav-emoji">📋</span><span class="nav-text"> Aufstellung</span></button>
     <button class="nav-btn" onclick="showView('trade',this)"><span class="nav-emoji">🔄</span><span class="nav-text"> Trade<span id="nav-trade-badge" style="display:none;background:#c62828;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:3px;vertical-align:middle"></span></span></button>
     <button class="nav-btn" onclick="showView('live',this)"><span class="nav-emoji">🔴</span><span class="nav-text"> Live</span></button>
-    <button class="nav-btn" onclick="showView('punkte',this)"><span class="nav-emoji">⚽</span><span class="nav-text"> Punkte</span></button>
-    <button class="nav-btn" onclick="showView('rangliste',this)"><span class="nav-emoji">🏅</span><span class="nav-text"> Rangliste</span></button>
+    <button class="nav-btn" onclick="showView('rangliste',this)"><span class="nav-emoji">🏅</span><span class="nav-text"> Liga</span></button>
     <button class="nav-btn" id="nav-admin-btn" onclick="showView('admin-direct',this)" style="display:none"><span class="nav-emoji">⚙️</span><span class="nav-text"> Admin</span></button>
   </nav>
 
@@ -2913,6 +2911,9 @@ function renderAdminContent(){
       ['motm','Man of the Match'],['pens','Elfmeter pariert']
     ];
     el.innerHTML=`
+      <div class="admin-card" style="margin-bottom:12px">
+        <button class="btn-admin-action" style="width:100%" onclick="closeAdmin();showView('punkte',null)">⚽ Spieltag-Punkte eingeben</button>
+      </div>
       <div class="admin-card"><h3>⭐ Punktesystem</h3>
         <div class="adm-grid-2">
           ${scoringFields.map(([k,label])=>`<div class="adm-scoring-row">
@@ -3186,9 +3187,11 @@ function renderMyTeam(){
   const initials=getInitials(myName);
   const headerBg=rank===1?'linear-gradient(135deg,rgba(212,160,23,0.15),rgba(212,160,23,0.05))':rank<=3?'linear-gradient(135deg,rgba(74,222,128,0.1),rgba(74,222,128,0.03))':'var(--card)';
   const headerBorder=rank===1?'rgba(212,160,23,0.35)':rank<=3?'rgba(74,222,128,0.2)':'var(--border)';
+  const tabBarHtml=`<div class="tab-bar" style="margin-bottom:14px"><button class="tab-btn${teamTab==='squad'?' active':''}" onclick="switchTeamTab('squad',this)">👕 Kader</button><button class="tab-btn${teamTab==='lineup'?' active':''}" onclick="switchTeamTab('lineup',this)">📋 Aufstellung</button></div>`;
+  if(teamTab==='lineup'){el.innerHTML=tabBarHtml+'<div id="aufstellung-content"></div>';renderAufstellung();return;}
   const cnts={ST:0,LA:0,MI:0,AN:0};
   squad.forEach(p=>cnts[p.pos]=(cnts[p.pos]||0)+1);
-  let html=`<div class="team-header-card" style="background:${headerBg};border-color:${headerBorder}">
+  let html=tabBarHtml+`<div class="team-header-card" style="background:${headerBg};border-color:${headerBorder}">
     <div class="thc-top">
       <div class="thc-avatar">${rankEmoji||initials}</div>
       <div>
@@ -3263,6 +3266,12 @@ function quickTrade(playerId){
 // ── AUFSTELLUNG ───────────────────────────────────────────────────
 const FORMATIONS={'4-3-3':{LA:4,MI:3,AN:3},'4-4-2':{LA:4,MI:4,AN:2},'4-2-3-1':{LA:4,MI:5,AN:1},'3-5-2':{LA:3,MI:5,AN:2},'3-4-3':{LA:3,MI:4,AN:3},'5-3-2':{LA:5,MI:3,AN:2}};
 let swapFirst=null;
+let teamTab='squad';
+
+function switchTeamTab(tab,btn){
+  teamTab=tab;
+  renderMyTeam();
+}
 let dragFromId=null;
 
 function shirtSVG(color1,color2){
