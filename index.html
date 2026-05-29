@@ -1509,10 +1509,16 @@ function showToastError(msg){
   setTimeout(()=>{t.classList.remove('show');t.style.background='';},4000);
 }
 
+let _syncTimeout=null;
 function startAutoSync(){
-  if(typeof syncInterval!=='undefined'&&syncInterval)clearInterval(syncInterval);
-  syncInterval=setInterval(async()=>{
-    if(!currentLigaId)return;
+  if(syncInterval){clearInterval(syncInterval);syncInterval=null;}
+  if(_syncTimeout){clearTimeout(_syncTimeout);_syncTimeout=null;}
+
+  async function doSync(){
+    if(!currentLigaId){
+      _syncTimeout=setTimeout(doSync,5000);
+      return;
+    }
     try{
       let data;
       if(currentLigaId===LIGA_ID){
@@ -1527,13 +1533,20 @@ function startAutoSync(){
         if(!state.tradeOffers)state.tradeOffers=[];
         if(!state.lineups)state.lineups={};
         if(!state.captains)state.captains={};
+        applyCustomPlayers();
         refreshCurrentView();
         updateTradeBadge&&updateTradeBadge();
       }
     }catch(e){/* silent */}
-    // periodically check for new global match points (throttled inside)
+    // check platform match points (throttled inside to 15min)
     syncPlatformPoints(false);
-  },30000); // reduced to 30s to allow platform sync check
+    // Fast sync during draft (4s), slow otherwise (30s)
+    const delay=state?.phase==='draft'?4000:30000;
+    _syncTimeout=setTimeout(doSync,delay);
+  }
+
+  _syncTimeout=setTimeout(doSync,3000);
+  syncInterval=true; // keep truthy so switchLiga() can detect it
 }
 
 // ── MULTI-LIGA ───────────────────────────────────────────────────
@@ -1630,6 +1643,7 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   if(!state.captains)state.captains={};
   if(!state.playerFlags)state.playerFlags={};
   if(!state.managers)state.managers=[];
+  applyCustomPlayers(); // use custom player list if set by admin
   document.getElementById('liga-select').style.display='none';
   const app=document.getElementById('app');
   if(app){app.style.display='flex';app.style.flexDirection='column';}
@@ -1718,7 +1732,8 @@ async function joinLiga(){
 }
 
 function switchLiga(){
-  if(syncInterval){clearInterval(syncInterval);syncInterval=null;}
+  if(_syncTimeout){clearTimeout(_syncTimeout);_syncTimeout=null;}
+  syncInterval=null;
   currentLigaId=null;currentLigaCode=null;currentLigaName=null;
   document.getElementById('app').style.display='none';
   document.getElementById('liga-select').style.display='block';
@@ -2667,15 +2682,19 @@ function updateDraftHeader(){
 }
 
 // ── PICK TIMER ──────────────────────────────────────────────────
+let _timerForPick=-1; // which pick index the timer is currently running for
 function startPickTimer(){
-  stopPickTimer();
   const currentState=(mockDraftActive&&mockDraftState)?mockDraftState:state;
   if(currentState.phase!=='draft')return;
   const pick=currentState.draftPick||0;
   const order=currentState.draftOrder||[];
   if(pick>=order.length)return;
-  const isMyTurn=order[pick]===myName;
-  if(!isMyTurn)return;
+  const isMyTurn=(order[pick]||'').trim().toLowerCase()===(myName||'').trim().toLowerCase();
+  if(!isMyTurn){stopPickTimer();return;}
+  // Don't restart timer if already running for the same pick
+  if(drPickTimer&&_timerForPick===pick)return;
+  stopPickTimer();
+  _timerForPick=pick;
   drPickTimeLeft=DR_PICK_TIME;
   updateTimerUI();
   const timerWrap=document.getElementById('dr-timer-wrap');
@@ -2692,6 +2711,7 @@ function startPickTimer(){
 
 function stopPickTimer(){
   if(drPickTimer){clearInterval(drPickTimer);drPickTimer=null;}
+  _timerForPick=-1;
 }
 
 function updateTimerUI(){
@@ -3233,7 +3253,7 @@ async function draftPlayer(playerId,isAuto){
   if(state.phase!=='draft'){toast('Draft nicht aktiv!');return;}
   const currentPick=state.draftPick||0;
   if(currentPick>=(state.draftOrder||[]).length){toast('Draft beendet!');return;}
-  if(state.draftOrder[currentPick]!==myName){toast('Du bist nicht dran!');return;}
+  if((state.draftOrder[currentPick]||'').trim().toLowerCase()!==(myName||'').trim().toLowerCase()){toast('Du bist nicht dran!');return;}
   if(getDraftedIds().has(playerId)){toast('Bereits gedraftet!');return;}
   const p=PLAYERS.find(x=>x.id===playerId);
   if(!p){toast('Spieler nicht gefunden!');return;}
@@ -3311,7 +3331,7 @@ async function loadPlayerPhoto(playerId,imgEl){
   _photoCache[playerId]=null;
 }
 
-const PLAYERS=[
+let PLAYERS=[
   {id:1,name:'Alisson Becker',nation:'Brasilien',pos:'ST',rating:91},
   {id:2,name:'Ederson',nation:'Brasilien',pos:'ST',rating:90},
   {id:3,name:'Thibaut Courtois',nation:'Belgien',pos:'ST',rating:90},
@@ -3414,6 +3434,60 @@ const PLAYERS=[
   {id:100,name:'Robert Lewandowski',nation:'Polen',pos:'AN',rating:89},
   {id:101,name:'Son Heung-min',nation:'Südkorea',pos:'AN',rating:88},
 ];
+
+const _DEFAULT_PLAYERS=PLAYERS.map(p=>({...p})); // keep backup of defaults
+
+function applyCustomPlayers(){
+  if(!state?.customPlayers?.length)return;
+  PLAYERS.length=0;
+  PLAYERS.push(...state.customPlayers);
+}
+
+function admImportPlayerCSV(){
+  const raw=(document.getElementById('adm-player-csv')?.value||'').trim();
+  if(!raw){toast('CSV leer!');return;}
+  const posMap={
+    'TW':'ST','TORWART':'ST','GK':'ST','ST':'ST',
+    'ABW':'LA','ABWEHR':'LA','DEF':'LA','LA':'LA',
+    'MID':'MI','MITTELFELD':'MI','MIT':'MI','MI':'MI',
+    'ANG':'AN','ANGRIFF':'AN','STU':'AN','FWD':'AN','AN':'AN','ATT':'AN'
+  };
+  const lines=raw.split('\n').filter(l=>l.trim()&&!l.startsWith('#'));
+  const parsed=[];
+  const errors=[];
+  lines.forEach((line,i)=>{
+    const parts=line.split(',').map(s=>s.trim());
+    if(parts.length<3){errors.push('Zeile '+(i+1)+': zu wenige Spalten');return;}
+    const name=parts[0];
+    const nation=parts[1];
+    const posRaw=(parts[2]||'').toUpperCase();
+    const pos=posMap[posRaw];
+    const rating=parseInt(parts[3])||80;
+    if(!name||!nation){errors.push('Zeile '+(i+1)+': Name/Nation fehlt');return;}
+    if(!pos){errors.push('Zeile '+(i+1)+': Position "'+parts[2]+'" unbekannt (TW/ABW/MID/ANG)');return;}
+    parsed.push({id:Date.now()+i,name,nation,pos,rating:Math.min(99,Math.max(50,rating))});
+  });
+  if(!parsed.length){toast('Keine gültigen Spieler gefunden!\n'+errors.slice(0,3).join('\n'));return;}
+  if(errors.length){toast(errors.length+' Fehler (erste): '+errors[0]);}
+  if(!confirm(parsed.length+' Spieler importieren? Bestehende Liste wird ERSETZT.\n\nNur vor dem Draft empfohlen!'))return;
+  // Assign sequential IDs
+  parsed.forEach((p,i)=>p.id=i+1);
+  state.customPlayers=parsed;
+  PLAYERS.length=0;
+  PLAYERS.push(...parsed);
+  saveToDB().then(()=>{
+    toast(parsed.length+' Spieler importiert ✅');
+    admRefresh();
+  });
+}
+
+function admResetPlayers(){
+  if(!confirm('Spielerliste auf Standard zurücksetzen?'))return;
+  delete state.customPlayers;
+  PLAYERS.length=0;
+  PLAYERS.push(..._DEFAULT_PLAYERS);
+  saveToDB().then(()=>{toast('Standard-Spielerliste wiederhergestellt');admRefresh();});
+}
 
 // ── ADMIN ─────────────────────────────────────────────────────────
 let adminTapCount=0,adminTapTimer=null;
@@ -3647,6 +3721,15 @@ function renderAdminContent(){
             <button class="btn-admin-action" style="font-size:10px;padding:3px 8px" onclick="admResetPin('${name.replace(/'/g,"\\'")}')">🔑 PIN reset</button>
           </div>`).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:8px">Noch keine Registrierungen</div>'}
         <p style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px">PIN reset setzt PIN auf 0000. Spieler kann danach neuen PIN wählen.</p>
+      </div>
+      <div class="admin-card"><h3>⚽ Spieler-Datenbank <span style="font-size:11px;background:rgba(240,192,64,0.15);color:#f0c040;border-radius:4px;padding:2px 6px">${PLAYERS.length} Spieler${state.customPlayers?'  · Custom':'  · Standard'}</span></h3>
+        <p style="font-size:12px;color:#9de0b8;margin-bottom:10px">CSV importieren: <code style="font-size:11px;color:#f0c040">Name, Nation, Position (TW/ABW/MID/ANG), Rating</code><br>Eine Zeile pro Spieler. Nur vor dem Draft ändern!</p>
+        <textarea id="adm-player-csv" style="width:100%;height:160px;background:#0a1a0d;border:1px solid #2d4a2d;color:#e2e8f0;border-radius:8px;padding:8px;font-family:monospace;font-size:11px;resize:vertical;margin-bottom:8px" placeholder="Kylian Mbappé, Frankreich, ANG, 92&#10;Vinicius Jr., Brasilien, ANG, 91&#10;Manuel Neuer, Deutschland, TW, 85&#10;..."></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-admin-action" style="background:#166534;border-color:#22c55e;color:#dcfce7" onclick="admImportPlayerCSV()">📥 Importieren & Ersetzen</button>
+          ${state.customPlayers?'<button class="btn-admin-danger" onclick="admResetPlayers()">↺ Standard wiederherstellen</button>':''}
+        </div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px">Tipp: Zeilen mit # beginnen werden ignoriert (Kommentare).</p>
       </div>
       <div class="admin-card"><h3>⚠️ Danger Zone</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
