@@ -949,13 +949,51 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   </div>
 </div>
 
+<div id="liga-select" style="display:none;position:fixed;inset:0;background:linear-gradient(160deg,#052e16 0%,#064e3b 50%,#065f46 100%);z-index:900;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div style="max-width:420px;margin:0 auto;padding:24px 16px 40px">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:48px;margin-bottom:8px">🏆</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;letter-spacing:2px">FANTASY WM 2026</div>
+      <div style="font-size:11px;color:#86efac;letter-spacing:3px;text-transform:uppercase;margin-top:2px">Wähle eine Liga</div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.07);border-radius:16px;padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;color:#86efac;font-weight:600;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">Meine Ligen</div>
+      <div id="my-ligen-list" style="min-height:40px">
+        <div style="color:#9de0b8;font-size:13px;text-align:center;padding:12px 0">Ligen werden geladen...</div>
+      </div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.07);border-radius:16px;padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;color:#86efac;font-weight:600;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">Neue Liga erstellen</div>
+      <input type="text" id="create-liga-name" placeholder="Liga-Name (z.B. WM Büro)" maxlength="30" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:8px;outline:none">
+      <select id="create-liga-size" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(30,80,50,0.9);color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:12px;outline:none">
+        <option value="4">4 Manager</option>
+        <option value="6">6 Manager</option>
+        <option value="8" selected>8 Manager</option>
+        <option value="10">10 Manager</option>
+        <option value="12">12 Manager</option>
+      </select>
+      <button onclick="createLiga()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#16a34a,#059669);color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px">Liga erstellen →</button>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.07);border-radius:16px;padding:16px;margin-bottom:24px">
+      <div style="font-size:13px;color:#86efac;font-weight:600;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase">Liga beitreten</div>
+      <input type="text" id="join-liga-code" placeholder="Liga-Code (z.B. WM-ABCD)" maxlength="10" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:12px;outline:none;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+      <button onclick="joinLiga()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#0369a1,#0284c7);color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px">Beitreten →</button>
+    </div>
+
+    <button onclick="logoutUser()" style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#9de0b8;font-size:13px;cursor:pointer">Abmelden / Account wechseln</button>
+  </div>
+</div>
+
 <div id="app" style="display:none">
   <div class="header">
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:22px;cursor:pointer" id="logo-tap" onclick="adminTap()">🏆</span>
       <div>
         <div class="header-title">Fantasy WM 2026</div>
-        <div class="header-sub">USA · Kanada · Mexiko</div>
+        <div class="header-sub" id="current-liga-display">USA · Kanada · Mexiko</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -964,6 +1002,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
         <span id="sync-label">Live</span>
       </div>
       <span id="user-display" style="font-size:12px;color:#9de0b8;font-weight:500"></span>
+      <button onclick="switchLiga()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#86efac;font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;letter-spacing:0.5px" title="Liga wechseln">⇄ Liga</button>
       <span id="phase-badge" class="phase-badge">Setup</span>
     </div>
   </div>
@@ -1327,19 +1366,22 @@ async function loadFromDB(){
 }
 
 async function saveToDB(){
+  if(!currentLigaId){console.warn('saveToDB: kein currentLigaId');return;}
   setSyncStatus('syncing');
   try{
-    localStorage.setItem('fwm_state_fallback', JSON.stringify(state));
-    const payload={id:LIGA_ID, data:state, updated_at:new Date().toISOString()};
-    const res=await db.from('liga_state').upsert(payload,{onConflict:'id'});
-    if(res.error){
-      console.error('Save error details:', JSON.stringify(res.error));
-      setSyncStatus('error');
+    localStorage.setItem('fwm_state_fallback_'+currentLigaId,JSON.stringify(state));
+    let err;
+    if(currentLigaId===LIGA_ID){
+      const res=await db.from('liga_state').upsert({id:LIGA_ID,data:state,updated_at:new Date().toISOString()},{onConflict:'id'});
+      err=res.error;
     } else {
-      setSyncStatus('live');
+      const res=await db.from('ligen').update({data:state}).eq('id',currentLigaId);
+      err=res.error;
     }
-  } catch(e){
-    console.error('Save exception:', e.message||e);
+    if(err){console.error('Save error:',err);setSyncStatus('error');}
+    else setSyncStatus('live');
+  }catch(e){
+    console.error('Save exception:',e.message||e);
     setSyncStatus('error');
   }
 }
@@ -1360,19 +1402,203 @@ function showToastError(msg){
 }
 
 function startAutoSync(){
-  if(typeof syncInterval!=='undefined'&&syncInterval) clearInterval(syncInterval);
+  if(typeof syncInterval!=='undefined'&&syncInterval)clearInterval(syncInterval);
   syncInterval=setInterval(async()=>{
+    if(!currentLigaId)return;
     try{
-      const{data}=await db.from('liga_state').select('data,updated_at').eq('id',LIGA_ID).single();
-      if(data&&data.data){
-        state=data.data;
+      let data;
+      if(currentLigaId===LIGA_ID){
+        const r=await db.from('liga_state').select('data').eq('id',LIGA_ID).single();
+        data=r.data?.data;
+      } else {
+        const r=await db.from('ligen').select('data').eq('id',currentLigaId).single();
+        data=r.data?.data;
+      }
+      if(data){
+        state=data;
         if(!state.tradeOffers)state.tradeOffers=[];
         if(!state.lineups)state.lineups={};
+        if(!state.captains)state.captains={};
         refreshCurrentView();
         updateTradeBadge&&updateTradeBadge();
       }
-    }catch(e){ /* silent fail */ }
+    }catch(e){/* silent */}
   },6000);
+}
+
+// ── MULTI-LIGA ───────────────────────────────────────────────────
+async function loadLegacyState(){
+  try{
+    const{data}=await db.from('liga_state').select('data').eq('id',LIGA_ID).single();
+    return data?.data||null;
+  }catch(e){return null;}
+}
+
+async function loadMyLigen(){
+  const cached=localStorage.getItem('fwm_ligen');
+  if(cached){try{myLigen=JSON.parse(cached);}catch(e){}}
+  try{
+    const{data:members}=await db.from('liga_members').select('liga_id').eq('player_name',myName);
+    if(members&&members.length){
+      const ids=members.map(d=>d.liga_id);
+      const{data:ligen}=await db.from('ligen').select('id,name,code,admin,data').in('id',ids);
+      if(ligen){
+        myLigen=ligen;
+        localStorage.setItem('fwm_ligen',JSON.stringify(ligen.map(l=>({id:l.id,code:l.code,name:l.name,admin:l.admin}))));
+      }
+    }
+  }catch(e){console.warn('loadMyLigen error:',e);}
+}
+
+async function renderLigaSelect(){
+  const nameEl=document.getElementById('liga-select-name');
+  if(nameEl)nameEl.textContent=myName;
+  await loadMyLigen();
+  const listEl=document.getElementById('my-ligen-list');
+  if(!listEl)return;
+  if(!myLigen.length){
+    listEl.innerHTML='<div style="color:rgba(255,255,255,0.3);font-size:13px;text-align:center;padding:16px">Du bist noch in keiner Liga.<br>Erstelle eine oder tritt einer bei!</div>';
+    return;
+  }
+  const colors=['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399'];
+  listEl.innerHTML=myLigen.map((l,i)=>{
+    const isAdmin=l.admin===myName;
+    const memberCount=(l.data?.managers||[]).length;
+    const maxSize=l.data?.maxSize||8;
+    const phase=l.data?.phase||'setup';
+    const phaseLabel=phase==='draft'?'🎯 Draft':phase==='active'?'✅ Aktiv':'⏳ Setup';
+    const col=colors[i%colors.length];
+    return '<div onclick="enterLigaById(\''+l.id+'\')"'
+      +' style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,'+(i===0?'0.25':'0.1')+');'
+      +'border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;'
+      +'transition:all 0.15s;display:flex;align-items:center;gap:12px"'
+      +' onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'"'
+      +' onmouseout="this.style.background=\'rgba(255,255,255,0.08)\'">'
+      +'<div style="background:'+col+'30;border-radius:8px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏆</div>'
+      +'<div style="flex:1">'
+        +'<div style="font-weight:700;color:#fff;font-size:15px">'+l.name+'</div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">'
+          +'Code: <span style="color:#f0c040;font-weight:700">'+l.code+'</span> · '
+          +memberCount+'/'+maxSize+' · '+phaseLabel
+          +(isAdmin?' · <span style="color:#f0c040">Admin</span>':'')
+        +'</div>'
+      +'</div>'
+      +'<div style="color:rgba(255,255,255,0.3);font-size:18px">→</div>'
+      +'</div>';
+  }).join('');
+}
+
+async function enterLigaById(ligaId){
+  toast('Liga wird geladen...');
+  try{
+    const{data,error}=await db.from('ligen').select('*').eq('id',ligaId).single();
+    if(error||!data){toast('Liga konnte nicht geladen werden!');return;}
+    const isAdmin=data.admin===myName||localStorage.getItem('fwm_is_admin')==='true';
+    await enterLiga(data.id,data.name,data.code,data.data||{},isAdmin);
+  }catch(e){toast('Fehler: '+e.message);}
+}
+
+async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
+  currentLigaId=ligaId;
+  currentLigaCode=ligaCode;
+  currentLigaName=ligaName;
+  isLigaAdmin=isAdmin;
+  localStorage.setItem('fwm_last_liga',ligaId);
+  state={...ligaData};
+  if(!state.tradeOffers)state.tradeOffers=[];
+  if(!state.lineups)state.lineups={};
+  if(!state.captains)state.captains={};
+  if(!state.managers)state.managers=[];
+  document.getElementById('liga-select').style.display='none';
+  const app=document.getElementById('app');
+  if(app){app.style.display='flex';app.style.flexDirection='column';}
+  const ud=document.getElementById('user-display');
+  if(ud)ud.textContent='👤 '+myName;
+  const display=document.getElementById('current-liga-display');
+  if(display)display.textContent=ligaName+' · '+ligaCode;
+  const isAdminFull=isAdmin||ADMIN_NAMES.some(n=>n.toLowerCase()===(myName||'').toLowerCase());
+  if(isAdminFull)localStorage.setItem('fwm_is_admin','true');
+  checkAdminTab();
+  renderSetup();
+  updatePhaseBadge();
+  renderCountdown();
+  setInterval(renderCountdown,1000);
+  startAutoSync();
+  requestNotificationPermission();
+  toast('🏆 '+ligaName);
+}
+
+async function createLiga(){
+  const name=(document.getElementById('new-liga-name')?.value||'').trim();
+  if(!name){toast('Bitte Liga-Name eingeben!');return;}
+  const maxSize=parseInt(document.getElementById('new-liga-size')?.value||'8');
+  let code=generateLigaCode();
+  const ligaId='liga_'+Date.now();
+  const ligaData={
+    phase:'setup',managers:[myName],squads:{[myName]:[]},draftOrder:[],
+    draftPick:0,draftType:'snake',squadSize:14,maxSize:maxSize,
+    tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},captains:{},players:{},
+    scoring:{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3,pens:5}
+  };
+  // Copy players (PIN system) from current state if available
+  if(state&&state.players)ligaData.players=state.players;
+  const{error}=await db.from('ligen').insert({id:ligaId,name,code,admin:myName,data:ligaData});
+  if(error){
+    console.warn('Insert error, retrying with new code:',error);
+    code=generateLigaCode()+Math.floor(Math.random()*9);
+    const{error:e2}=await db.from('ligen').insert({id:ligaId,name,code,admin:myName,data:ligaData});
+    if(e2){toast('Fehler beim Erstellen: '+e2.message);return;}
+  }
+  await db.from('liga_members').upsert({liga_id:ligaId,player_name:myName});
+  myLigen.push({id:ligaId,name,code,admin:myName,data:ligaData});
+  localStorage.setItem('fwm_ligen',JSON.stringify(myLigen.map(l=>({id:l.id,code:l.code,name:l.name,admin:l.admin}))));
+  toast('Liga "'+name+'" erstellt! Code: '+code+' 🎉');
+  await enterLiga(ligaId,name,code,ligaData,true);
+}
+
+async function joinLiga(){
+  const code=(document.getElementById('join-liga-code')?.value||'').trim().toUpperCase();
+  if(!code){toast('Bitte Liga-Code eingeben!');return;}
+  const errEl=document.getElementById('join-liga-error');
+  if(errEl)errEl.style.display='none';
+  const{data,error}=await db.from('ligen').select('*').eq('code',code).single();
+  if(error||!data){
+    if(errEl){errEl.textContent='Liga nicht gefunden. Code prüfen!';errEl.style.display='block';}
+    return;
+  }
+  const ligaData=data.data||{};
+  const members=ligaData.managers||[];
+  if(members.length>=(ligaData.maxSize||8)&&!members.includes(myName)){
+    if(errEl){errEl.textContent='Liga ist voll ('+members.length+'/'+(ligaData.maxSize||8)+' Spieler)';errEl.style.display='block';}
+    return;
+  }
+  if(!members.includes(myName)){
+    ligaData.managers=[...members,myName];
+    ligaData.squads=ligaData.squads||{};
+    ligaData.squads[myName]=[];
+    await db.from('ligen').update({data:ligaData}).eq('id',data.id);
+    await db.from('liga_members').upsert({liga_id:data.id,player_name:myName});
+  }
+  const existing=myLigen.find(l=>l.id===data.id);
+  if(!existing){myLigen.push({id:data.id,name:data.name,code:data.code,admin:data.admin,data:ligaData});}
+  localStorage.setItem('fwm_ligen',JSON.stringify(myLigen.map(l=>({id:l.id,code:l.code,name:l.name,admin:l.admin}))));
+  toast('Liga "'+data.name+'" beigetreten! 🎉');
+  await enterLiga(data.id,data.name,data.code,ligaData,data.admin===myName);
+}
+
+function switchLiga(){
+  if(syncInterval){clearInterval(syncInterval);syncInterval=null;}
+  currentLigaId=null;currentLigaCode=null;currentLigaName=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('liga-select').style.display='block';
+  renderLigaSelect();
+}
+
+function logoutUser(){
+  if(!confirm('Abmelden?'))return;
+  localStorage.removeItem('fwm_myname');localStorage.removeItem('fwm_pin');
+  localStorage.removeItem('fwm_is_admin');localStorage.removeItem('fwm_last_liga');
+  location.reload();
 }
 
 // ── HELPER FUNCTIONS ────────────────────────────────────────────
@@ -1590,21 +1816,10 @@ async function loginPlayer(){
 
 function completeLogin(){
   document.getElementById('name-entry').style.display='none';
-  const app=document.getElementById('app');
-  if(app){app.style.display='flex';app.style.flexDirection='column';}
-  const ud=document.getElementById('user-display');
-  if(ud)ud.textContent='👤 '+myName;
-  const sl=document.getElementById('share-link');
-  if(sl)sl.value=window.location.origin+window.location.pathname;
   const isAdmin=ADMIN_NAMES.some(n=>n.toLowerCase()===(myName||'').toLowerCase())||localStorage.getItem('fwm_is_admin')==='true';
   if(isAdmin)localStorage.setItem('fwm_is_admin','true');
-  checkAdminTab();
-  renderSetup();
-  updatePhaseBadge();
-  renderCountdown();
-  setInterval(renderCountdown,1000);
-  startAutoSync();
-  requestNotificationPermission();
+  document.getElementById('liga-select').style.display='block';
+  renderLigaSelect();
 }
 
 let rulesVisible=false;
@@ -1631,12 +1846,11 @@ function renderSetup(){
   }
 
   // ── SHARE LINK + QR ──────────────────────────────
+  const shareUrl='https://tzigerlig.github.io/fantasy-wm/'+(currentLigaCode?'?liga='+currentLigaCode:'');
   const sl=document.getElementById('share-link');
-  if(sl)sl.value='https://tzigerlig.github.io/fantasy-wm/';
+  if(sl)sl.value=shareUrl;
   const qr=document.getElementById('qr-code');
-  if(qr&&!qr.src.includes('qrserver')){
-    qr.src='https://api.qrserver.com/v1/create-qr-code/?size=80x80&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent('https://tzigerlig.github.io/fantasy-wm/');
-  }
+  if(qr)qr.src='https://api.qrserver.com/v1/create-qr-code/?size=80x80&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent(shareUrl);
 
   // ── WM COUNTDOWN ──────────────────────────────
   const wmEl=document.getElementById('home-wm-countdown');
@@ -1892,6 +2106,18 @@ let state=null;
 let myName=localStorage.getItem('fwm_myname')||null;
 let apiKey=localStorage.getItem('fwm_apikey')||null;
 let syncInterval=null;
+let currentLigaId=null;
+let currentLigaCode=null;
+let currentLigaName=null;
+let myLigen=[];
+let isLigaAdmin=false;
+
+function generateLigaCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code='WM-';
+  for(let i=0;i<4;i++)code+=chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
 let draftFilter='ALL';
 let showDraftBoard=false;
 let drQueue=[];
@@ -4385,62 +4611,77 @@ window.addEventListener('appinstalled',()=>{
 function openAdmin(){showAdminPanel();}
 
 async function init(){
-  // TEMP: Für Testing - localStorage komplett leeren wenn ?reset in URL
-  if(new URLSearchParams(window.location.search).get('reset')==='1'){
-    localStorage.removeItem('fwm_myname');
-    localStorage.removeItem('fwm_pin');
-    localStorage.removeItem('fwm_device_id');
-    console.log('Login reset');
-  }
   const urlParams=new URLSearchParams(window.location.search);
-  if(urlParams.get('admin')===ADMIN_PW){
-    await loadFromDB();
-    document.getElementById('loading-overlay').style.display='none';
-    document.getElementById('app').style.display='flex';
-    document.getElementById('app').style.flexDirection='column';
-    if(!myName){
-      document.getElementById('name-entry').style.display='flex';
-      renderNameEntry(state.managers&&state.managers.length>0?'login':'register');
-    } else {
-      const ud=document.getElementById('user-display');if(ud)ud.textContent='👤 '+myName;
-    }
-    localStorage.setItem('fwm_is_admin','true');
-    checkAdminTab();
-    renderSetup();updatePhaseBadge();openAdmin();
-    return;
+  if(urlParams.get('reset')==='1'){
+    localStorage.removeItem('fwm_myname');localStorage.removeItem('fwm_pin');
+    localStorage.removeItem('fwm_device_id');localStorage.removeItem('fwm_last_liga');
   }
-  await loadFromDB();
-  document.getElementById('loading-overlay').style.display='none';
   if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
+  // Admin URL shortcut — legacy compat
+  if(urlParams.get('admin')===ADMIN_PW){
+    currentLigaId=LIGA_ID;
+    const legacyData=await loadLegacyState();
+    state=legacyData||getDefaultState();
+    document.getElementById('loading-overlay').style.display='none';
+    if(!myName){
+      document.getElementById('name-entry').style.display='flex';
+      renderNameEntry(state.managers?.length>0?'login':'register');
+    } else {
+      document.getElementById('app').style.display='flex';
+      document.getElementById('app').style.flexDirection='column';
+      document.getElementById('user-display').textContent='👤 '+myName;
+      localStorage.setItem('fwm_is_admin','true');
+      checkAdminTab();
+      renderSetup();updatePhaseBadge();openAdmin();
+    }
+    return;
+  }
+
+  document.getElementById('loading-overlay').style.display='none';
   const savedName=localStorage.getItem('fwm_myname');
   const savedPin=localStorage.getItem('fwm_pin');
+  const ligaCodeFromUrl=urlParams.get('liga');
 
-  if(savedName&&savedPin&&state.players&&state.players[savedName]){
-    if(state.players[savedName].pin===savedPin){
-      // Valid PIN — auto-login
+  if(savedName&&savedPin){
+    // Load legacy state for PIN verification
+    const legacyData=await loadLegacyState();
+    state=legacyData||getDefaultState();
+    const players=state.players||{};
+    if(players[savedName]&&players[savedName].pin===savedPin){
       myName=savedName;
-      completeLogin();
+      // Auto-enter last liga if available and no URL override
+      const lastLigaId=localStorage.getItem('fwm_last_liga');
+      if(ligaCodeFromUrl){
+        document.getElementById('liga-select').style.display='block';
+        await renderLigaSelect();
+        document.getElementById('join-liga-code').value=ligaCodeFromUrl;
+        joinLiga();
+      } else if(lastLigaId&&lastLigaId!==LIGA_ID){
+        await enterLigaById(lastLigaId);
+      } else {
+        document.getElementById('liga-select').style.display='block';
+        renderLigaSelect();
+      }
+    } else if(!players[savedName]){
+      // PIN not in legacy state — try showing liga-select (player may have been in new liga)
+      myName=savedName;
+      document.getElementById('liga-select').style.display='block';
+      renderLigaSelect();
     } else {
-      // PIN mismatch — force re-login
-      localStorage.removeItem('fwm_myname');
-      localStorage.removeItem('fwm_pin');
+      localStorage.removeItem('fwm_myname');localStorage.removeItem('fwm_pin');
       document.getElementById('name-entry').style.display='flex';
       renderNameEntry('login');
     }
-  } else if(savedName&&(!state.players||!state.players[savedName])){
-    // Spieler existiert noch nicht im PIN-System
-    // Zeige Register-Form mit vorausgefülltem Namen
+  } else if(savedName){
     document.getElementById('name-entry').style.display='flex';
     renderNameEntry('register');
-    // Namen vorausfüllen
-    setTimeout(()=>{
-      const nameInput=document.getElementById('name-input');
-      if(nameInput)nameInput.value=savedName;
-    },100);
+    setTimeout(()=>{const n=document.getElementById('name-input');if(n)n.value=savedName;},100);
   } else {
+    const legacyData=await loadLegacyState();
+    state=legacyData||getDefaultState();
     document.getElementById('name-entry').style.display='flex';
-    renderNameEntry(state.managers&&state.managers.length>0?'login':'register');
+    renderNameEntry(state.managers?.length>0?'login':'register');
   }
 }
 
