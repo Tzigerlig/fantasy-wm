@@ -2886,7 +2886,7 @@ function renderDraftPool(){
     const rowTitle=limitReached?'Positionslimit erreicht für '+POS_LABEL[p.pos]:'';
     return '<div class="dr-player-row clickable'+(isDrafted?' drafted':'')+(limitReached?' limit-reached':'')+(inQueue&&!isDrafted?' queued':'')+'" onclick="openPlayerModal('+p.id+')" title="'+rowTitle+'">'+
       '<span style="font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;display:inline-block;background:'+(p.pos==='ST'?'#dbeafe':p.pos==='LA'?'#fef9c3':p.pos==='MI'?'#fce7f3':'#dcfce7')+';color:'+(p.pos==='ST'?'#1e40af':p.pos==='LA'?'#854d0e':p.pos==='MI'?'#9d174d':'#166534')+'">'+POS_LABEL[p.pos]+'</span>'+
-      '<div><div class="drp-name">'+p.name+getFlagBadge(p.id)+'</div><div class="drp-nation">'+p.nation+'</div></div>'+
+      '<div><div class="drp-name">'+p.name+getFlagBadge(p.id)+'</div><div class="drp-nation" style="display:flex;align-items:center;gap:4px">'+(getPlayerFlagUrl(p.nation)?'<img src="'+getPlayerFlagUrl(p.nation)+'" style="width:14px;border-radius:1px" onerror="this.style.display=\'none\'">':'')+p.nation+'</div></div>'+
       '<div class="drp-rating">'+p.rating+'</div>'+
       draftBtn+
       queueBtn+
@@ -3055,6 +3055,56 @@ function renderDraftBoard(){}// compat
 
 // ── CONSTANTS ────────────────────────────────────────────────────
 const POS_LABEL={ST:'TW',LA:'ABW',MI:'MID',AN:'ANG'};
+
+const NATION_FLAG={
+  'Argentinien':'ar','Australien':'au','Belgien':'be','Brasilien':'br','Dänemark':'dk',
+  'Deutschland':'de','Ecuador':'ec','England':'gb-eng','Frankreich':'fr','Ghana':'gh',
+  'Iran':'ir','Italien':'it','Japan':'jp','Kamerun':'cm','Kanada':'ca','Kolumbien':'co',
+  'Costa Rica':'cr','Kroatien':'hr','Marokko':'ma','Mexiko':'mx','Niederlande':'nl',
+  'Nigeria':'ng','Österreich':'at','Polen':'pl','Portugal':'pt','Saudi-Arabien':'sa',
+  'Schweiz':'ch','Senegal':'sn','Serbien':'rs','Slowenien':'si','Spanien':'es',
+  'Südkorea':'kr','Tunesien':'tn','Türkei':'tr','Ukraine':'ua','Uruguay':'uy',
+  'USA':'us','Wales':'gb-wls','Ägypten':'eg','Algerien':'dz','Ungarn':'hu',
+  'Tschechien':'cz','Schweden':'se','Norwegen':'no','Schottland':'gb-sct',
+  'Nordirland':'gb-nir','Irland':'ie','Island':'is','Albanien':'al','Georgien':'ge'
+};
+
+function getPlayerFlagUrl(nation){
+  const code=NATION_FLAG[nation];
+  return code?`https://flagcdn.com/w40/${code}.png`:null;
+}
+
+const _photoCache={};
+async function loadPlayerPhoto(playerId,imgEl){
+  if(!imgEl)return;
+  const p=PLAYERS.find(x=>x.id===playerId);
+  if(!p)return;
+  if(_photoCache[playerId]!==undefined){
+    if(_photoCache[playerId]&&imgEl.parentNode)imgEl.src=_photoCache[playerId];
+    return;
+  }
+  const lsKey='fwm_wphoto_'+playerId;
+  const cached=localStorage.getItem(lsKey);
+  if(cached){_photoCache[playerId]=cached;imgEl.src=cached;return;}
+  try{
+    const names=[p.name+' (footballer)',p.name];
+    for(const name of names){
+      const resp=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`,{signal:AbortSignal.timeout?AbortSignal.timeout(4000):undefined});
+      if(!resp.ok)continue;
+      const data=await resp.json();
+      const desc=(data.description||'').toLowerCase();
+      const isPlayer=desc.includes('football')||desc.includes('soccer')||desc.includes('goalkeeper')||desc.includes('midfielder')||desc.includes('defender')||desc.includes('forward');
+      if(!isPlayer)continue;
+      const url=data.thumbnail?.source;
+      if(!url)continue;
+      _photoCache[playerId]=url;
+      try{localStorage.setItem(lsKey,url);}catch(e){}
+      if(imgEl.parentNode)imgEl.src=url;
+      return;
+    }
+  }catch(e){}
+  _photoCache[playerId]=null;
+}
 
 const PLAYERS=[
   {id:1,name:'Alisson Becker',nation:'Brasilien',pos:'ST',rating:91},
@@ -3548,7 +3598,7 @@ function admRenderFlagList(){
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
       +'<span style="font-size:9px;padding:2px 5px;border-radius:4px;background:'+(p.pos==='ST'?'#1e3a8a':p.pos==='LA'?'#78350f':p.pos==='MI'?'#4a044e':'#14532d')+';color:#fff">'+POS_LABEL[p.pos]+'</span>'
       +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div>'
-      +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">'+p.nation+'</div></div>'
+      +'<div style="font-size:10px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:3px">'+(getPlayerFlagUrl(p.nation)?'<img src="'+getPlayerFlagUrl(p.nation)+'" style="width:13px;border-radius:1px" onerror="this.style.display=\'none\'">':'')+p.nation+'</div></div>'
       +(flag?'<span style="font-size:10px;color:'+(flag==='injured'?'#f87171':'#fbbf24')+'">'+( flag==='injured'?'🚑 Verletzt':'🚫 Gesperrt')+'</span>':'')
       +'<button onclick="setPlayerFlag('+p.id+',\'injured\')" style="background:'+(flag==='injured'?'#dc2626':'rgba(220,38,38,0.15)')+';border:1px solid #dc2626;color:'+(flag==='injured'?'#fff':'#f87171')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Verletzt">🚑</button>'
       +'<button onclick="setPlayerFlag('+p.id+',\'suspended\')" style="background:'+(flag==='suspended'?'#d97706':'rgba(217,119,6,0.15)')+';border:1px solid #d97706;color:'+(flag==='suspended'?'#fff':'#fbbf24')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Gesperrt">🚫</button>'
@@ -3656,7 +3706,7 @@ function renderMyTeam(){
       html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">';
       topAvail.forEach(p=>{
         html+='<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center">';
-        html+='<div style="font-size:20px">'+(p.nation||'').split(' ')[0]+'</div>';
+        const _fu=getPlayerFlagUrl(p.nation);html+=_fu?'<img src="'+_fu+'" style="width:32px;border-radius:3px;margin-bottom:2px" onerror="this.style.display=\'none\'">':'<div style="font-size:20px">🌍</div>';
         html+='<span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>';
         html+='<div style="font-weight:600;font-size:12px;margin-top:4px">'+p.name+'</div>';
         html+='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--green2)">'+p.rating+'</div>';
@@ -3712,11 +3762,11 @@ function renderMyTeam(){
   <div class="team-player-grid" id="team-player-grid">`;
   squad.forEach(p=>{
     const pts=getPlayerPoints(p.id,myName);
-    const flag=(p.nation||'').split(' ')[0]||'🌍';
+    const flagUrl=getPlayerFlagUrl(p.nation)||'';
     const isCaptain=state.captains&&state.captains[myName]===p.id;
     html+=`<div class="team-player-card" data-pos="${p.pos}" onclick="openPlayerModal(${p.id})">
       <div class="tpc-top">
-        <span class="tpc-flag">${flag}</span>
+        ${flagUrl?`<img src="${flagUrl}" style="width:26px;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.2)" onerror="this.style.display='none'">`:'<span class="tpc-flag">🌍</span>'}
         <span class="tpc-pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
         <button class="captain-btn${isCaptain?' captain-active':''}" onclick="event.stopPropagation();setCaptain(${p.id})" title="Als Captain setzen (2x Punkte)" style="margin-left:auto;background:${isCaptain?'var(--gold)':'transparent'};color:${isCaptain?'#1a1a1a':'var(--gold)'}">${isCaptain?'©':'C'}</button>
       </div>
@@ -4943,19 +4993,23 @@ function openPlayerModal(playerId){
         +'<div style="width:100%;height:'+h+'px;background:'+(f.pts>0?'var(--green3)':'#fca5a5')+';border-radius:2px"></div>'
         +'</div>';}).join('')
     +'</div></div>'):'';
+  const flagUrl=getPlayerFlagUrl(p.nation)||'';
+  const photoId='pm-photo-'+p.id;
   content.innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">'
-      +'<div style="display:flex;align-items:center;gap:12px">'
-        +'<div style="font-family:Bebas Neue,sans-serif;font-size:48px;color:var(--green);line-height:1">'+p.rating+'</div>'
-        +'<div>'
-          +'<div style="font-weight:700;font-size:18px">'+p.name+'</div>'
-          +'<div style="display:flex;gap:6px;margin-top:4px;align-items:center">'
-            +'<span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>'
-            +'<span style="font-size:13px;color:var(--muted)">'+p.nation+'</span>'
-          +'</div>'
+    '<div style="position:relative;margin:-24px -24px 16px;height:150px;overflow:hidden;border-radius:16px 16px 0 0;background:#1a1a2e">'
+      +'<img src="'+flagUrl+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(14px) saturate(1.4);transform:scale(1.3);opacity:0.6" onerror="this.style.display=\'none\'">'
+      +'<div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.1),rgba(0,0,0,0.65))"></div>'
+      +'<button onclick="closePlayerModal()" style="position:absolute;top:10px;right:12px;background:rgba(0,0,0,0.35);border:none;font-size:18px;cursor:pointer;color:rgba(255,255,255,0.8);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center">✕</button>'
+      +'<img id="'+photoId+'" src="'+flagUrl+'" style="position:absolute;right:16px;bottom:0;height:140px;object-fit:cover;object-position:top center;border-radius:8px 8px 0 0;box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:all .3s" onerror="this.src=\''+flagUrl+'\'">'
+      +'<div style="position:absolute;bottom:10px;left:16px">'
+        +'<span class="pos-badge pos-'+p.pos+'" style="margin-bottom:4px;display:inline-block">'+POS_LABEL[p.pos]+'</span>'
+        +'<div style="font-weight:700;font-size:19px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.6)">'+p.name+'</div>'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-top:2px">'
+          +(flagUrl?'<img src="'+flagUrl+'" style="width:18px;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,0.4)">':'')
+          +'<span style="color:rgba(255,255,255,0.75);font-size:12px">'+p.nation+'</span>'
+          +'<span style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--gold);margin-left:6px">'+p.rating+'</span>'
         +'</div>'
       +'</div>'
-      +'<button onclick="closePlayerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">'
       +'<div style="background:#f9fafb;border-radius:8px;padding:10px;text-align:center"><div style="font-family:Bebas Neue,sans-serif;font-size:24px;color:var(--green2)">'+totalPts+'</div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase">Saison-Pts</div></div>'
@@ -4981,6 +5035,8 @@ function openPlayerModal(playerId){
       +(owner===myName&&isCaptain?'<button class="btn btn-gold" style="flex:1" onclick="setCaptain('+p.id+');closePlayerModal()">© Captain entfernen</button>':'')
     +'</div>';
   modal.style.display='flex';
+  // async load Wikipedia photo after modal is visible
+  loadPlayerPhoto(p.id, document.getElementById(photoId));
 }
 
 function closePlayerModal(){
