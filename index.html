@@ -1564,9 +1564,8 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   if(ud)ud.textContent='👤 '+myName;
   const display=document.getElementById('current-liga-display');
   if(display)display.textContent=ligaName+' · '+ligaCode;
-  const isAdminFull=isAdmin||ADMIN_NAMES.some(n=>n.toLowerCase()===(myName||'').toLowerCase());
-  if(isAdminFull)localStorage.setItem('fwm_is_admin','true');
-  checkAdminTab();
+  if(isAdmin)localStorage.setItem('fwm_is_admin','true');
+  checkAdminAccess();
   renderSetup();
   updatePhaseBadge();
   renderCountdown();
@@ -1897,8 +1896,7 @@ async function loginPlayer(){
 
 function completeLogin(){
   document.getElementById('name-entry').style.display='none';
-  const isAdmin=ADMIN_NAMES.some(n=>n.toLowerCase()===(myName||'').toLowerCase())||localStorage.getItem('fwm_is_admin')==='true';
-  if(isAdmin)localStorage.setItem('fwm_is_admin','true');
+  checkAdminAccess();
   document.getElementById('liga-select').style.display='block';
   renderLigaSelect();
   const loginCount=parseInt(localStorage.getItem('fwm_login_count')||'0');
@@ -2162,11 +2160,15 @@ function refreshCurrentView(){
   }catch(e){}
 }
 
-function checkAdminTab(){
-  const isAdmin=localStorage.getItem('fwm_is_admin')==='true';
+function checkAdminAccess(){
+  const isAdmin=ADMIN_NAMES.some(n=>n.toLowerCase()===(myName||'').toLowerCase())||localStorage.getItem('fwm_is_admin')==='true';
+  if(isAdmin)localStorage.setItem('fwm_is_admin','true');
   const adminBtn=document.getElementById('nav-admin-btn');
   if(adminBtn)adminBtn.style.display=isAdmin?'flex':'none';
+  return isAdmin;
 }
+
+function checkAdminTab(){checkAdminAccess();}
 
 function showView(id,btn){
   if(id==='admin-direct'){openAdmin();return;}
@@ -4768,6 +4770,7 @@ async function init(){
     const players=state.players||{};
     if(players[savedName]&&players[savedName].pin===savedPin){
       myName=savedName;
+      checkAdminAccess();
       // Auto-enter last liga if available and no URL override
       const lastLigaId=localStorage.getItem('fwm_last_liga');
       if(ligaCodeFromUrl){
@@ -4784,6 +4787,7 @@ async function init(){
     } else if(!players[savedName]){
       // PIN not in legacy state — try showing liga-select (player may have been in new liga)
       myName=savedName;
+      checkAdminAccess();
       document.getElementById('liga-select').style.display='block';
       renderLigaSelect();
     } else {
