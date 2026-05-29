@@ -1272,17 +1272,12 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   <!-- RANGLISTE -->
   <div class="view" id="view-rangliste">
     <div class="stats-bar" id="league-stats"></div>
-    <div class="card">
-      <div class="card-title">🏅 Gesamtrangliste</div>
-      <table class="rank-table">
-        <thead><tr><th>#</th><th>Manager</th><th>Spieler</th><th>Punkte</th></tr></thead>
-        <tbody id="rank-tbody"></tbody>
-      </table>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchRanglisteTab('gesamt',this)">🏅 Gesamt</button>
+      <button class="tab-btn" onclick="switchRanglisteTab('spieltage',this)">📅 Spieltage</button>
+      <button class="tab-btn" onclick="switchRanglisteTab('spieler',this)">⭐ Spieler</button>
     </div>
-    <div class="card">
-      <div class="card-title">⭐ Top Scorer</div>
-      <div id="top-players-list"></div>
-    </div>
+    <div id="rangliste-content"></div>
   </div>
 
   <nav class="bottom-nav" id="bottom-nav">
@@ -2340,12 +2335,6 @@ function canDraftPos(pos){
   return picksLeft>=mandatoryNeeded;
 }
 
-function getDraftedIds(){
-  const ids=new Set();
-  Object.values(state.squads||{}).forEach(sq=>sq.forEach(id=>ids.add(id)));
-  return ids;
-}
-
 // ── RENDER DRAFT ROOM ────────────────────────────────────────────
 function renderDraftView(){
   rebuildFeedFromState();
@@ -2810,6 +2799,7 @@ function setFilter(f,btn){
 }
 
 let showingQueue=false;
+let currentRanglisteTab='gesamt';
 function toggleDrQueue(){
   showingQueue=!showingQueue;
   const lbl=document.getElementById('dr-queue-label');
@@ -4015,6 +4005,13 @@ function aufChangeFormation(f){
 }
 
 // ── RANGLISTE ─────────────────────────────────────────────────────
+function switchRanglisteTab(tab,btn){
+  currentRanglisteTab=tab;
+  document.querySelectorAll('#view-rangliste .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderRanglisteContent();
+}
+
 function renderRangliste(){
   const managers=state.managers||[];
   const sorted=[...managers].sort((a,b)=>getManagerPoints(b)-getManagerPoints(a));
@@ -4024,38 +4021,158 @@ function renderRangliste(){
     statsEl.innerHTML=[['Manager',managers.length],['Spieltage',state.matchdays?.length||0],['Spieler',managers.reduce((s,m)=>s+(state.squads[m]?.length||0),0)],['Leader',leader]].map(([l,v])=>
       `<div class="stat-box"><div class="stat-val" style="font-size:${typeof v==='string'&&v.length>4?'18px':'28px'}">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');
   }
-  const tbody=document.getElementById('rank-tbody');
-  if(tbody){
-    const leaderPts=sorted.length?getManagerPoints(sorted[0]):0;
-    tbody.innerHTML=sorted.length?sorted.map((m,i)=>{
-      const pts=getManagerPoints(m);
-      const cl=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
-      const medal=['🥇','🥈','🥉'][i]||'#'+(i+1);
-      const safe=m.replace(/\W/g,'_');
-      const diff=i===0?'':`<span style="font-size:10px;color:#f87171;font-weight:600">−${leaderPts-pts}</span>`;
-      return `<tr class="${cl}" style="cursor:pointer" onclick="toggleManagerDetails('${m.replace(/'/g,"\\'")}')">
-        <td class="rank-num">${medal}</td>
-        <td><div style="display:flex;align-items:center;gap:8px">
-          <div class="avatar" style="background:${getColor(i)}22;color:${getColor(i)};font-size:11px;width:28px;height:28px">${getInitials(m)}</div>
-          <div><span style="font-weight:${m===myName?700:500}">${m}${m===myName?' <span style="font-size:10px;color:var(--green3)">(Du)</span>':''}</span>${(()=>{const cid=state.captains?.[m];const cp=cid?PLAYERS.find(pl=>pl.id===cid):null;return cp?'<div style="font-size:10px;color:var(--gold)">⭐ '+cp.name+'</div>':'';})()}</div>
-        </div></td>
-        <td style="color:var(--muted)">${(state.squads[m]||[]).length}</td>
-        <td class="rank-pts"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">${pts}<div style="display:flex;align-items:center;gap:4px">${diff}<span style="font-size:10px;color:var(--muted)">▾</span></div></div></td></tr>
-      <tr id="mgr-detail-${safe}" style="display:none"><td colspan="4" style="padding:4px 8px 10px;background:#f9fafb;border-bottom:1px solid var(--border)">${renderManagerDetails(m)}</td></tr>`;
-    }).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Noch keine Manager</td></tr>';
+  renderRanglisteContent();
+}
+
+function renderRanglisteContent(){
+  const el=document.getElementById('rangliste-content');
+  if(!el)return;
+  if(currentRanglisteTab==='gesamt')renderGesamtRanking(el);
+  else if(currentRanglisteTab==='spieltage')renderMatchdayRanking(el);
+  else renderPlayerRanking(el);
+}
+
+function renderGesamtRanking(el){
+  const managers=state.managers||[];
+  const sorted=[...managers].sort((a,b)=>getManagerPoints(b)-getManagerPoints(a));
+  const leaderPts=sorted.length?getManagerPoints(sorted[0]):0;
+  const rows=sorted.length?sorted.map((m,i)=>{
+    const pts=getManagerPoints(m);
+    const cl=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+    const medal=['🥇','🥈','🥉'][i]||'#'+(i+1);
+    const safe=m.replace(/\W/g,'_');
+    const diff=i===0?'':`<span style="font-size:10px;color:#f87171;font-weight:600">−${leaderPts-pts}</span>`;
+    return `<tr class="${cl}" style="cursor:pointer" onclick="toggleManagerDetails('${m.replace(/'/g,"\\'")}')">
+      <td class="rank-num">${medal}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" style="background:${getColor(i)}22;color:${getColor(i)};font-size:11px;width:28px;height:28px">${getInitials(m)}</div>
+        <div><span style="font-weight:${m===myName?700:500}">${m}${m===myName?' <span style="font-size:10px;color:var(--green3)">(Du)</span>':''}</span>${(()=>{const cid=state.captains?.[m];const cp=cid?PLAYERS.find(pl=>pl.id===cid):null;return cp?'<div style="font-size:10px;color:var(--gold)">⭐ '+cp.name+'</div>':'';})()}</div>
+      </div></td>
+      <td style="color:var(--muted)">${(state.squads[m]||[]).length}</td>
+      <td class="rank-pts"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">${pts}<div style="display:flex;align-items:center;gap:4px">${diff}<span style="font-size:10px;color:var(--muted)">▾</span></div></div></td></tr>
+    <tr id="mgr-detail-${safe}" style="display:none"><td colspan="4" style="padding:4px 8px 10px;background:#f9fafb;border-bottom:1px solid var(--border)">${renderManagerDetails(m)}</td></tr>`;
+  }).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Noch keine Manager</td></tr>';
+  el.innerHTML=`<table class="rank-table" style="width:100%">
+    <thead><tr><th>Platz</th><th>Manager</th><th>Sp.</th><th>Pts</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function renderMatchdayRanking(el){
+  const matchdays=state.matchdays||[];
+  const managers=state.managers||[];
+  if(!matchdays.length){
+    el.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 20px;font-size:14px">Noch keine Spieltage</div>';
+    return;
   }
-  const topEl=document.getElementById('top-players-list');
-  if(topEl){
-    const top=PLAYERS.map(p=>({...p,pts:getPlayerPoints(p.id)})).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts).slice(0,10);
-    topEl.innerHTML=top.length?top.map((p,i)=>{
-      const owner=Object.entries(state.squads||{}).find(([,sq])=>sq.includes(p.id))?.[0]||'–';
-      return `<div class="player-stat-row">
-        <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--muted);width:22px">${i+1}</span>
-        <span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
-        <div style="flex:1"><div style="font-weight:600">${p.name}</div><div style="font-size:11px;color:var(--muted)">${p.nation} · ${owner}</div></div>
-        <span class="pts-pill">${p.pts}</span></div>`;
-    }).join(''):'<div style="color:var(--muted);font-size:13px;padding:8px 0">Noch keine Punkte</div>';
+  const colors=managers.map((_,i)=>getColor(i));
+  // per-matchday pts for each manager
+  const mdPts=matchdays.map(md=>{
+    const obj={name:md.name,pts:{}};
+    managers.forEach(m=>{
+      const sq=state.squads[m]||[];
+      obj.pts[m]=sq.reduce((s,id)=>{
+        const e=md.entries?.find(e=>e.playerId===id);
+        return s+(e?e.pts:0);
+      },0);
+    });
+    return obj;
+  });
+  // find winner per matchday
+  const winner=md=>{
+    let best=null,bestPts=-1;
+    managers.forEach(m=>{if(md.pts[m]>bestPts){bestPts=md.pts[m];best=m;}});
+    return best;
+  };
+  const maxPts=Math.max(1,...mdPts.flatMap(md=>Object.values(md.pts)));
+  let html='';
+  mdPts.forEach(md=>{
+    const w=winner(md);
+    html+=`<div style="background:var(--card);border-radius:12px;margin-bottom:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:700;font-size:14px">${md.name}</span>
+        <span style="font-size:11px;background:#fef9c3;color:#854d0e;border-radius:20px;padding:2px 8px;font-weight:600">🏆 ${w||'–'}</span>
+      </div>`;
+    managers.forEach((m,i)=>{
+      const pts=md.pts[m]||0;
+      const pct=Math.round((pts/maxPts)*100);
+      html+=`<div style="margin-bottom:7px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+          <span style="font-weight:${m===myName?700:500}">${m}${m===myName?' (Du)':''}</span>
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:${colors[i]}">${pts}</span>
+        </div>
+        <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${colors[i]};border-radius:4px;transition:width .4s"></div>
+        </div></div>`;
+    });
+    html+='</div>';
+  });
+  // cumulative standings chart
+  const cumPts={};
+  managers.forEach(m=>cumPts[m]=0);
+  let chartRows='';
+  mdPts.forEach(md=>{
+    managers.forEach(m=>cumPts[m]+=md.pts[m]||0);
+  });
+  const finalSorted=[...managers].sort((a,b)=>cumPts[b]-cumPts[a]);
+  const maxCum=Math.max(1,...finalSorted.map(m=>cumPts[m]));
+  html+=`<div style="background:var(--card);border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">Gesamtpunkte</div>`;
+  finalSorted.forEach((m,i)=>{
+    const pts=cumPts[m];
+    const pct=Math.round((pts/maxCum)*100);
+    html+=`<div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+        <span style="font-weight:${m===myName?700:500}">${['🥇','🥈','🥉'][i]||'  '} ${m}${m===myName?' (Du)':''}</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:${getColor(managers.indexOf(m))}">${pts}</span>
+      </div>
+      <div style="height:10px;background:#f1f5f9;border-radius:5px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${getColor(managers.indexOf(m))};border-radius:5px;transition:width .4s"></div>
+      </div></div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function renderPlayerRanking(el){
+  const allDrafted=Object.values(state.squads||{}).flat();
+  const ranked=PLAYERS
+    .filter(p=>allDrafted.includes(p.id))
+    .map(p=>({...p,pts:getPlayerPoints(p.id)}))
+    .sort((a,b)=>b.pts-a.pts);
+  const unplayed=ranked.filter(p=>p.pts===0);
+  const played=ranked.filter(p=>p.pts>0);
+  const maxPts=played.length?played[0].pts:1;
+  const renderRow=(p,i,showBar)=>{
+    const owner=Object.entries(state.squads||{}).find(([,sq])=>sq.includes(p.id))?.[0]||'–';
+    const ownerIdx=state.managers?.indexOf(owner)??-1;
+    const pct=showBar?Math.round((p.pts/maxPts)*100):0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--muted);width:20px;text-align:right">${i+1}</span>
+      <span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px">${p.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.nation}${ownerIdx>=0?` · <span style="color:${getColor(ownerIdx)};font-weight:600">${owner}</span>`:''}${owner===myName?' (Du)':''}</div>
+        ${showBar?`<div style="height:5px;background:#f1f5f9;border-radius:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${ownerIdx>=0?getColor(ownerIdx):'var(--green3)'};border-radius:3px"></div></div>`:''}
+      </div>
+      <span class="pts-pill">${p.pts}</span></div>`;
+  };
+  let html='';
+  if(played.length){
+    html+=`<div style="background:var(--card);border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:12px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px">Top Spieler</div>
+      ${played.map((p,i)=>renderRow(p,i,true)).join('')}
+    </div>`;
   }
+  if(unplayed.length){
+    html+=`<div style="background:var(--card);border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--muted)">Noch keine Punkte</div>
+      ${unplayed.slice(0,20).map((p,i)=>renderRow(p,played.length+i,false)).join('')}
+    </div>`;
+  }
+  if(!ranked.length){
+    html='<div style="text-align:center;color:var(--muted);padding:40px 20px;font-size:14px">Noch keine Spieler gedraftet</div>';
+  }
+  el.innerHTML=html;
 }
 
 function toggleManagerDetails(manager){
