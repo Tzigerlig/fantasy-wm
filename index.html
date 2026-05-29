@@ -1231,9 +1231,9 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   <!-- SPIELPLAN -->
   <div class="view" id="view-spielplan">
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchSpielplanTab('fixtures',this)">📅 Spiele</button>
-      <button class="tab-btn" onclick="switchSpielplanTab('groups',this)">👥 Gruppen</button>
-      <button class="tab-btn" onclick="switchSpielplanTab('bracket',this)">🏆 KO-Runde</button>
+      <button class="tab-btn active" onclick="switchSpielplanTab('heute',this)">📅 Heute</button>
+      <button class="tab-btn" onclick="switchSpielplanTab('alle',this)">🗓️ Alle Spiele</button>
+      <button class="tab-btn" onclick="switchSpielplanTab('gruppen',this)">👥 Gruppen</button>
     </div>
     <div id="spielplan-content"></div>
   </div>
@@ -2198,7 +2198,7 @@ function showView(id,btn){
   else if(id==='trade'){renderTradeView();setTimeout(()=>switchTradeTab('offer',document.querySelector('.tab-btn')),0);}
   else if(id==='punkte')renderPunkte();
   else if(id==='setup')renderSetup();
-  else if(id==='spielplan')renderSpielplanTab('fixtures');
+  else if(id==='spielplan')renderSpielplanContent('heute');
   else if(id==='live'){liveTab='fixtures';switchLiveTab('fixtures',document.querySelector('.tab-btn'));}
 }
 
@@ -4691,29 +4691,72 @@ const SPIELPLAN_GROUPS={
   H:['Portugal','Uruguay','Südkorea','Ghana']
 };
 
-const SPIELPLAN_FIXTURES=[
-  {date:'2026-06-11',time:'21:00',home:'Gastgeberland',away:'Ecuador',group:'A',venue:'MetLife, New York'},
-  {date:'2026-06-12',time:'15:00',home:'England',away:'Iran',group:'B',venue:'SoFi, Los Angeles'},
-  {date:'2026-06-12',time:'18:00',home:'Senegal',away:'Niederlande',group:'A',venue:'AT&T, Dallas'},
-  {date:'2026-06-12',time:'21:00',home:'USA',away:'Wales',group:'B',venue:'Levi\'s, San Francisco'},
-  {date:'2026-06-13',time:'15:00',home:'Argentinien',away:'Saudi-Arabien',group:'C',venue:'Hard Rock, Miami'},
-  {date:'2026-06-13',time:'18:00',home:'Dänemark',away:'Tunesien',group:'D',venue:'Estadio Azteca, Mexico City'},
-  {date:'2026-06-13',time:'21:00',home:'Mexiko',away:'Polen',group:'C',venue:'Rose Bowl, Los Angeles'},
-  {date:'2026-06-14',time:'15:00',home:'Frankreich',away:'Australien',group:'D',venue:'BMO Field, Toronto'},
-  {date:'2026-06-14',time:'18:00',home:'Marokko',away:'Kroatien',group:'F',venue:'Gillette, Boston'},
-  {date:'2026-06-14',time:'21:00',home:'Deutschland',away:'Japan',group:'E',venue:'NRG, Houston'},
-  {date:'2026-06-15',time:'15:00',home:'Spanien',away:'Costa Rica',group:'E',venue:'BC Place, Vancouver'},
-  {date:'2026-06-15',time:'18:00',home:'Belgien',away:'Kanada',group:'F',venue:'Estadio BBVA, Monterrey'},
-  {date:'2026-06-15',time:'21:00',home:'Schweiz',away:'Kamerun',group:'G',venue:'Lincoln Financial, Philadelphia'},
-  {date:'2026-06-16',time:'15:00',home:'Uruguay',away:'Südkorea',group:'H',venue:'Arrowhead, Kansas City'},
-  {date:'2026-06-16',time:'18:00',home:'Portugal',away:'Ghana',group:'H',venue:'Seattle Sounders'},
-  {date:'2026-06-16',time:'21:00',home:'Brasilien',away:'Serbien',group:'G',venue:'MetLife, New York'}
+const WM2026_FIXTURES=[
+  // GRUPPE A
+  {id:1,date:'2026-06-11',time:'21:00',home:'Mexiko',away:'Polen',group:'A',venue:'SoFi Stadium, Los Angeles'},
+  {id:2,date:'2026-06-12',time:'18:00',home:'USA',away:'Kanada',group:'A',venue:'MetLife Stadium, New York'},
+  {id:3,date:'2026-06-16',time:'18:00',home:'Polen',away:'Kanada',group:'A',venue:'Levi\'s Stadium, San Francisco'},
+  {id:4,date:'2026-06-16',time:'21:00',home:'USA',away:'Mexiko',group:'A',venue:'SoFi Stadium, Los Angeles'},
+  {id:5,date:'2026-06-20',time:'20:00',home:'Kanada',away:'Mexiko',group:'A',venue:'BC Place, Vancouver'},
+  {id:6,date:'2026-06-20',time:'20:00',home:'Polen',away:'USA',group:'A',venue:'MetLife Stadium, New York'},
+  // GRUPPE B
+  {id:7,date:'2026-06-12',time:'15:00',home:'Argentinien',away:'Marokko',group:'B',venue:'MetLife Stadium, New York'},
+  {id:8,date:'2026-06-13',time:'21:00',home:'Irak',away:'Ecuador',group:'B',venue:'AT&T Stadium, Dallas'},
+  {id:9,date:'2026-06-17',time:'18:00',home:'Marokko',away:'Ecuador',group:'B',venue:'SoFi Stadium, Los Angeles'},
+  {id:10,date:'2026-06-17',time:'21:00',home:'Argentinien',away:'Irak',group:'B',venue:'Rose Bowl, Pasadena'},
+  {id:11,date:'2026-06-21',time:'20:00',home:'Ecuador',away:'Argentinien',group:'B',venue:'Hard Rock Stadium, Miami'},
+  {id:12,date:'2026-06-21',time:'20:00',home:'Marokko',away:'Irak',group:'B',venue:'AT&T Stadium, Dallas'},
+  // GRUPPE C
+  {id:13,date:'2026-06-13',time:'15:00',home:'Frankreich',away:'Albanien',group:'C',venue:'Rose Bowl, Pasadena'},
+  {id:14,date:'2026-06-13',time:'18:00',home:'Spanien',away:'Brasilien',group:'C',venue:'Hard Rock Stadium, Miami'},
+  {id:15,date:'2026-06-17',time:'15:00',home:'Albanien',away:'Brasilien',group:'C',venue:'Levi\'s Stadium, San Francisco'},
+  {id:16,date:'2026-06-18',time:'00:00',home:'Spanien',away:'Frankreich',group:'C',venue:'AT&T Stadium, Dallas'},
+  {id:17,date:'2026-06-22',time:'20:00',home:'Brasilien',away:'Frankreich',group:'C',venue:'SoFi Stadium, Los Angeles'},
+  {id:18,date:'2026-06-22',time:'20:00',home:'Albanien',away:'Spanien',group:'C',venue:'MetLife Stadium, New York'},
+  // GRUPPE D
+  {id:19,date:'2026-06-13',time:'00:00',home:'England',away:'Serbien',group:'D',venue:'Levi\'s Stadium, San Francisco'},
+  {id:20,date:'2026-06-14',time:'15:00',home:'Deutschland',away:'Japan',group:'D',venue:'Gillette Stadium, Boston'},
+  {id:21,date:'2026-06-18',time:'18:00',home:'Serbien',away:'Japan',group:'D',venue:'Rose Bowl, Pasadena'},
+  {id:22,date:'2026-06-18',time:'21:00',home:'England',away:'Deutschland',group:'D',venue:'SoFi Stadium, Los Angeles'},
+  {id:23,date:'2026-06-22',time:'20:00',home:'Japan',away:'England',group:'D',venue:'Hard Rock Stadium, Miami'},
+  {id:24,date:'2026-06-22',time:'20:00',home:'Serbien',away:'Deutschland',group:'D',venue:'AT&T Stadium, Dallas'},
+  // GRUPPE E
+  {id:25,date:'2026-06-14',time:'18:00',home:'Portugal',away:'Angola',group:'E',venue:'AT&T Stadium, Dallas'},
+  {id:26,date:'2026-06-14',time:'21:00',home:'Niederlande',away:'Senegal',group:'E',venue:'Rose Bowl, Pasadena'},
+  {id:27,date:'2026-06-18',time:'15:00',home:'Angola',away:'Senegal',group:'E',venue:'MetLife Stadium, New York'},
+  {id:28,date:'2026-06-19',time:'00:00',home:'Portugal',away:'Niederlande',group:'E',venue:'Levi\'s Stadium, San Francisco'},
+  {id:29,date:'2026-06-23',time:'20:00',home:'Senegal',away:'Portugal',group:'E',venue:'SoFi Stadium, Los Angeles'},
+  {id:30,date:'2026-06-23',time:'20:00',home:'Angola',away:'Niederlande',group:'E',venue:'Gillette Stadium, Boston'},
+  // GRUPPE F
+  {id:31,date:'2026-06-14',time:'00:00',home:'Belgien',away:'Kamerun',group:'F',venue:'Hard Rock Stadium, Miami'},
+  {id:32,date:'2026-06-15',time:'15:00',home:'Italien',away:'Südkorea',group:'F',venue:'SoFi Stadium, Los Angeles'},
+  {id:33,date:'2026-06-19',time:'18:00',home:'Kamerun',away:'Südkorea',group:'F',venue:'Rose Bowl, Pasadena'},
+  {id:34,date:'2026-06-19',time:'21:00',home:'Belgien',away:'Italien',group:'F',venue:'MetLife Stadium, New York'},
+  {id:35,date:'2026-06-23',time:'20:00',home:'Südkorea',away:'Belgien',group:'F',venue:'Levi\'s Stadium, San Francisco'},
+  {id:36,date:'2026-06-23',time:'20:00',home:'Kamerun',away:'Italien',group:'F',venue:'AT&T Stadium, Dallas'},
+  // GRUPPE G
+  {id:37,date:'2026-06-15',time:'18:00',home:'Kroatien',away:'Schweiz',group:'G',venue:'MetLife Stadium, New York'},
+  {id:38,date:'2026-06-15',time:'21:00',home:'Uruguay',away:'Kenia',group:'G',venue:'AT&T Stadium, Dallas'},
+  {id:39,date:'2026-06-19',time:'15:00',home:'Schweiz',away:'Kenia',group:'G',venue:'Hard Rock Stadium, Miami'},
+  {id:40,date:'2026-06-20',time:'00:00',home:'Kroatien',away:'Uruguay',group:'G',venue:'SoFi Stadium, Los Angeles'},
+  {id:41,date:'2026-06-24',time:'20:00',home:'Kenia',away:'Kroatien',group:'G',venue:'Rose Bowl, Pasadena'},
+  {id:42,date:'2026-06-24',time:'20:00',home:'Schweiz',away:'Uruguay',group:'G',venue:'Gillette Stadium, Boston'},
+  // GRUPPE H
+  {id:43,date:'2026-06-15',time:'00:00',home:'Australien',away:'Türkei',group:'H',venue:'Levi\'s Stadium, San Francisco'},
+  {id:44,date:'2026-06-16',time:'15:00',home:'Kolumbien',away:'Rumänien',group:'H',venue:'SoFi Stadium, Los Angeles'},
+  {id:45,date:'2026-06-20',time:'15:00',home:'Türkei',away:'Rumänien',group:'H',venue:'MetLife Stadium, New York'},
+  {id:46,date:'2026-06-20',time:'18:00',home:'Kolumbien',away:'Australien',group:'H',venue:'Hard Rock Stadium, Miami'},
+  {id:47,date:'2026-06-24',time:'20:00',home:'Rumänien',away:'Kolumbien',group:'H',venue:'AT&T Stadium, Dallas'},
+  {id:48,date:'2026-06-24',time:'20:00',home:'Türkei',away:'Australien',group:'H',venue:'Rose Bowl, Pasadena'},
 ];
+
+let currentSpielplanTab='heute';
 
 function switchSpielplanTab(tab,btn){
   document.querySelectorAll('#view-spielplan .tab-btn').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  renderSpielplanTab(tab);
+  currentSpielplanTab=tab;
+  renderSpielplanContent(tab);
 }
 
 async function refreshSpielplan(){
@@ -4721,106 +4764,124 @@ async function refreshSpielplan(){
   if(!key){toast('Kein football-data.org API Key hinterlegt');openAdmin();return;}
   toast('⏳ Lade Spielplandaten...');
   const matches=await fetchFDOMatches(true);
-  if(matches){renderSpielplanTab('fixtures');toast('✅ Spielplan aktualisiert');}
+  if(matches){renderSpielplanContent(currentSpielplanTab||'heute');toast('✅ Spielplan aktualisiert');}
   else toast('❌ Laden fehlgeschlagen');
 }
 
-function renderSpielplanTab(tab){
+function renderSpielplanContent(tab){
   const el=document.getElementById('spielplan-content');if(!el)return;
-  if(tab==='fixtures'){
-    // Load cache from localStorage on first render
-    if(!wmMatchCache){
-      try{const c=JSON.parse(localStorage.getItem('fwm_wm_cache')||'null');if(c){wmMatchCache=c.m;wmMatchCacheTime=c.t;}}catch(e){}
-    }
-    const key=fdoKey||localStorage.getItem('fwm_fdo_key');
-    const cacheMin=wmMatchCacheTime?Math.round((Date.now()-wmMatchCacheTime)/60000):null;
-    let headerHtml='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px">';
-    if(key&&wmMatchCache){
-      headerHtml+='<div style="font-size:11px;color:#4ade80;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:#4ade80;border-radius:50%;display:inline-block"></span>'+(cacheMin!==null?'Vor '+cacheMin+' Min. aktualisiert':'Live-Daten aktiv')+'</div>';
-    } else if(key){
-      headerHtml+='<div style="font-size:11px;color:#f0c040">⏳ Lade Live-Daten...</div>';
-    } else {
-      headerHtml+='<div style="font-size:11px;color:rgba(255,255,255,0.4)">Statische Daten · <span style="color:#f0c040;cursor:pointer" onclick="openAdmin()">API Key hinterlegen</span></div>';
-    }
-    headerHtml+='<button onclick="refreshSpielplan()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#9de0b8;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer">🔄 Aktualisieren</button>';
-    headerHtml+='</div>';
+  const today=new Date().toISOString().slice(0,10);
+  const mySquad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
 
-    const grouped={};
-    SPIELPLAN_FIXTURES.forEach(f=>{if(!grouped[f.date])grouped[f.date]=[];grouped[f.date].push(f);});
-    const mySquad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
-    let html=headerHtml;
-    let hasLive=false;
-    Object.entries(grouped).sort().forEach(([date,games])=>{
-      const d=new Date(date+'T12:00:00');
-      html+='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:12px 0 6px">'+
-        d.toLocaleDateString('de',{weekday:'long',day:'2-digit',month:'long'})+'</div>';
-      games.forEach(g=>{
-        const fdoM=getFDOMatch(wmMatchCache,g.home,g.away,date);
-        const fdo=fmtFDOScore(fdoM);
-        if(fdoM&&(fdoM.status==='IN_PLAY'||fdoM.status==='PAUSED'))hasLive=true;
-        const myPlayersHere=mySquad.filter(p=>{
-          const n=(p.nation||'').split(' ').pop().trim();
-          return n===g.home||n===g.away;
-        });
-        const staticResult=state.wm_results?.[date+'_'+g.home]||null;
-        // Score display
-        let scoreHtml;
-        if(fdo){
-          scoreHtml='<div style="display:flex;flex-direction:column;align-items:center;gap:2px">'
-            +'<div style="background:'+fdo.badgeColor+';color:#fff;font-family:Bebas Neue,sans-serif;font-size:20px;padding:4px 12px;border-radius:6px;min-width:70px;text-align:center">'+fdo.score+'</div>'
-            +(fdo.badge==='LIVE'?'<div style="font-size:9px;font-weight:700;color:#dc2626;letter-spacing:1px;animation:pulse 1s infinite">'+fdo.sub+'</div>'
-              :'<div style="font-size:9px;color:var(--muted)">'+fdo.sub+'</div>')
-            +'</div>';
-        } else if(staticResult){
-          scoreHtml='<div style="background:#0a1a0e;color:#f0c040;font-family:Bebas Neue,sans-serif;font-size:20px;padding:4px 12px;border-radius:6px;min-width:60px;text-align:center">'+staticResult.home+' : '+staticResult.away+'</div>';
-        } else {
-          scoreHtml='<div style="background:#0a1a0e;color:#f0c040;font-family:Bebas Neue,sans-serif;font-size:20px;padding:4px 12px;border-radius:6px;min-width:60px;text-align:center">'+g.time+'</div>';
-        }
-        html+='<div class="fixture-card">';
-        html+='<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">';
-        html+='<div style="flex:1;text-align:right;font-weight:600;font-size:14px">'+g.home+'</div>';
-        html+=scoreHtml;
-        html+='<div style="flex:1;font-weight:600;font-size:14px">'+g.away+'</div>';
-        html+='</div>';
-        html+='<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">Gruppe '+g.group+' · '+g.venue+'</div>';
-        if(myPlayersHere.length){
-          html+='<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:6px;display:flex;gap:4px;flex-wrap:wrap">';
-          myPlayersHere.forEach(p=>{
-            html+='<span style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px">'+
-              '<span class="pos-badge pos-'+p.pos+'" style="font-size:8px">'+POS_LABEL[p.pos]+'</span>'+
-              p.name.split(' ').pop()+'</span>';
-          });
-          html+='</div>';
-        }
-        html+='</div>';
-      });
+  if(tab==='gruppen'){
+    const groups={};
+    WM2026_FIXTURES.forEach(f=>{
+      if(!groups[f.group])groups[f.group]=new Set();
+      groups[f.group].add(f.home);groups[f.group].add(f.away);
     });
-    el.innerHTML=html||'<div class="empty-state">Keine Spiele</div>';
-    // Auto-refresh when live game is running
-    clearTimeout(wmLiveRefreshTimer);
-    if(hasLive)wmLiveRefreshTimer=setTimeout(()=>renderSpielplanTab('fixtures'),60000);
-    // Async fetch fresh data and re-render
-    if(key){fetchFDOMatches().then(matches=>{if(matches)renderSpielplanTab('fixtures');});}
-  } else if(tab==='groups'){
-    let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">';
-    Object.entries(SPIELPLAN_GROUPS).forEach(([group,teams])=>{
+    let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:12px">';
+    Object.entries(groups).sort().forEach(([group,teams])=>{
       html+='<div class="card" style="padding:12px">';
-      html+='<div style="font-family:Bebas Neue,sans-serif;font-size:16px;color:var(--green);margin-bottom:8px">Gruppe '+group+'</div>';
-      teams.forEach((team,i)=>{
-        const hasMyPlayer=(state.squads[myName]||[]).some(id=>{const p=PLAYERS.find(x=>x.id===id);return p&&(p.nation||'').includes(team);});
+      html+='<div style="font-family:Bebas Neue,sans-serif;font-size:18px;color:var(--green);margin-bottom:8px">Gruppe '+group+'</div>';
+      [...teams].forEach(team=>{
+        const hasPlayer=mySquad.some(p=>{
+          const n=(p.nation||'').toLowerCase();
+          return n.includes(team.toLowerCase())||team.toLowerCase().includes(n.split(' ').pop());
+        });
         html+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">';
-        html+='<span style="font-size:11px;color:var(--muted);width:16px">'+(i+1)+'</span>';
-        html+='<span style="font-size:13px;font-weight:'+(hasMyPlayer?700:400)+'">'+team+'</span>';
-        if(hasMyPlayer)html+='<span style="font-size:10px;color:var(--green3);margin-left:auto">👕</span>';
+        html+='<span style="font-size:13px;font-weight:'+(hasPlayer?700:400)+';color:'+(hasPlayer?'var(--green3)':'var(--text)')+'">'+team+'</span>';
+        if(hasPlayer)html+='<span style="font-size:10px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:10px;margin-left:auto">👕</span>';
         html+='</div>';
       });
       html+='</div>';
     });
     html+='</div>';
     el.innerHTML=html;
-  } else {
-    el.innerHTML='<div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-title">KO-Runde</div><p>Erscheint nach der Gruppenphase (26. Juni 2026)</p></div>';
+    return;
   }
+
+  // Load FDO cache
+  if(!wmMatchCache){try{const c=JSON.parse(localStorage.getItem('fwm_wm_cache')||'null');if(c){wmMatchCache=c.m;wmMatchCacheTime=c.t;}}catch(e){}}
+  const key=fdoKey||localStorage.getItem('fwm_fdo_key');
+  const cacheMin=wmMatchCacheTime?Math.round((Date.now()-wmMatchCacheTime)/60000):null;
+  let headerHtml='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;padding:0 4px">';
+  if(key&&wmMatchCache){
+    headerHtml+='<div style="font-size:11px;color:#4ade80;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:#4ade80;border-radius:50%;display:inline-block"></span>'+(cacheMin!==null?'Vor '+cacheMin+' Min. aktualisiert':'Live-Daten aktiv')+'</div>';
+  } else if(key){
+    headerHtml+='<div style="font-size:11px;color:#f0c040">⏳ Lade Live-Daten...</div>';
+  } else {
+    headerHtml+='<div style="font-size:11px;color:var(--muted)">Statische Daten · <span style="color:#f0c040;cursor:pointer" onclick="openAdmin()">API Key hinterlegen</span></div>';
+  }
+  headerHtml+='<button onclick="refreshSpielplan()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#9de0b8;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer">🔄 Aktualisieren</button></div>';
+
+  let fixtures=WM2026_FIXTURES;
+  if(tab==='heute'){
+    fixtures=WM2026_FIXTURES.filter(f=>f.date===today);
+    if(!fixtures.length)fixtures=WM2026_FIXTURES.filter(f=>f.date>=today).slice(0,6);
+  }
+
+  const grouped={};
+  fixtures.forEach(f=>{if(!grouped[f.date])grouped[f.date]=[];grouped[f.date].push(f);});
+
+  if(!Object.keys(grouped).length){
+    el.innerHTML=headerHtml+'<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">Heute keine Spiele</div><p>Die WM startet am 11. Juni 2026</p></div>';
+    return;
+  }
+
+  let html=headerHtml;
+  let hasLive=false;
+  Object.entries(grouped).sort().forEach(([date,games])=>{
+    const d=new Date(date+'T12:00:00');
+    const isToday=date===today;
+    html+='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 0 6px;display:flex;align-items:center;gap:8px">';
+    html+=d.toLocaleDateString('de',{weekday:'long',day:'2-digit',month:'long'});
+    if(isToday)html+='<span style="background:#dcfce7;color:#166534;font-size:9px;padding:2px 6px;border-radius:10px">HEUTE</span>';
+    html+='</div>';
+    games.forEach(g=>{
+      const fdoM=getFDOMatch(wmMatchCache,g.home,g.away,date);
+      const fdo=fmtFDOScore(fdoM);
+      if(fdoM&&(fdoM.status==='IN_PLAY'||fdoM.status==='PAUSED'))hasLive=true;
+      const myPlayersHere=mySquad.filter(p=>{
+        const n=(p.nation||'').toLowerCase();
+        return n.includes(g.home.toLowerCase())||g.home.toLowerCase().includes(n.split(' ').pop())||
+               n.includes(g.away.toLowerCase())||g.away.toLowerCase().includes(n.split(' ').pop());
+      });
+      const staticResult=state.wm_results?.[g.id]||state.wm_results?.[date+'_'+g.home]||null;
+      let scoreHtml;
+      if(fdo){
+        scoreHtml='<div style="display:flex;flex-direction:column;align-items:center;gap:2px">'
+          +'<div style="background:'+fdo.badgeColor+';color:#fff;font-family:Bebas Neue,sans-serif;font-size:22px;padding:4px 12px;border-radius:6px;min-width:70px;text-align:center">'+fdo.score+'</div>'
+          +(fdo.badge==='LIVE'?'<div style="font-size:9px;font-weight:700;color:#dc2626;letter-spacing:1px;animation:pulse 1s infinite">'+fdo.sub+'</div>'
+            :'<div style="font-size:9px;color:var(--muted)">'+fdo.sub+'</div>')
+          +'</div>';
+      } else if(staticResult){
+        scoreHtml='<div style="background:#0a1a0e;color:#f0c040;font-family:Bebas Neue,sans-serif;font-size:22px;padding:4px 12px;border-radius:6px;min-width:65px;text-align:center">'+staticResult.home+' : '+staticResult.away+'</div>';
+      } else {
+        scoreHtml='<div style="background:#0a1a0e;color:#f0c040;font-family:Bebas Neue,sans-serif;font-size:22px;padding:4px 12px;border-radius:6px;min-width:65px;text-align:center">'+g.time+'</div>';
+      }
+      html+='<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;box-shadow:var(--shadow)'+(myPlayersHere.length?';border-left:3px solid var(--green3)':'')+'">';
+      html+='<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px">';
+      html+='<div style="text-align:right;font-weight:700;font-size:14px">'+g.home+'</div>';
+      html+=scoreHtml;
+      html+='<div style="font-weight:700;font-size:14px">'+g.away+'</div>';
+      html+='</div>';
+      html+='<div style="text-align:center;font-size:10px;color:var(--muted);margin-top:4px">Gruppe '+g.group+' · '+g.venue+'</div>';
+      if(myPlayersHere.length){
+        html+='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap">';
+        myPlayersHere.forEach(p=>{
+          html+='<span style="background:#f0fdf4;border:1px solid #86efac;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500;color:#166534;display:inline-flex;align-items:center;gap:4px">'
+            +'<span class="pos-badge pos-'+p.pos+'" style="font-size:8px">'+POS_LABEL[p.pos]+'</span>'
+            +p.name.split(' ').pop()+'</span>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
+    });
+  });
+  el.innerHTML=html;
+  clearTimeout(wmLiveRefreshTimer);
+  if(hasLive)wmLiveRefreshTimer=setTimeout(()=>renderSpielplanContent(currentSpielplanTab||'heute'),60000);
+  if(key)fetchFDOMatches().then(matches=>{if(matches)renderSpielplanContent(currentSpielplanTab||'heute');});
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
