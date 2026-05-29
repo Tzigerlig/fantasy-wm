@@ -3916,7 +3916,7 @@ function renderMyTeam(){
   const initials=getInitials(myName);
   const headerBg=rank===1?'linear-gradient(135deg,rgba(212,160,23,0.15),rgba(212,160,23,0.05))':rank<=3?'linear-gradient(135deg,rgba(74,222,128,0.1),rgba(74,222,128,0.03))':'var(--card)';
   const headerBorder=rank===1?'rgba(212,160,23,0.35)':rank<=3?'rgba(74,222,128,0.2)':'var(--border)';
-  const tabBarHtml=`<div class="tab-bar" style="margin-bottom:14px"><button class="tab-btn${teamTab==='squad'?' active':''}" onclick="switchTeamTab('squad',this)">👕 Kader</button><button class="tab-btn${teamTab==='lineup'?' active':''}" onclick="switchTeamTab('lineup',this)">📋 Aufstellung</button><button class="tab-btn${teamTab==='waiver'?' active':''}" onclick="switchTeamTab('waiver',this)">🔄 Waiver</button></div>`;
+  const tabBarHtml=`<div class="tab-bar" style="margin-bottom:14px"><button class="tab-btn${teamTab==='lineup'?' active':''}" onclick="switchTeamTab('lineup',this)">⚽ Aufstellung</button><button class="tab-btn${teamTab==='squad'?' active':''}" onclick="switchTeamTab('squad',this)">👕 Kader</button><button class="tab-btn${teamTab==='waiver'?' active':''}" onclick="switchTeamTab('waiver',this)">🔄 Waiver</button></div>`;
   if(teamTab==='lineup'){el.innerHTML=tabBarHtml+'<div id="aufstellung-content"></div>';renderAufstellung();return;}
   if(teamTab==='waiver'){el.innerHTML=tabBarHtml+'<div id="waiver-content"></div>';renderWaiverWire();return;}
   const cnts={ST:0,LA:0,MI:0,AN:0};
@@ -3996,7 +3996,7 @@ function quickTrade(playerId){
 // ── AUFSTELLUNG ───────────────────────────────────────────────────
 const FORMATIONS={'4-3-3':{LA:4,MI:3,AN:3},'4-4-2':{LA:4,MI:4,AN:2},'4-2-3-1':{LA:4,MI:5,AN:1},'3-5-2':{LA:3,MI:5,AN:2},'3-4-3':{LA:3,MI:4,AN:3},'5-3-2':{LA:5,MI:3,AN:2}};
 let swapFirst=null;
-let teamTab='squad';
+let teamTab='lineup';
 
 function switchTeamTab(tab,btn){
   teamTab=tab;
@@ -4132,23 +4132,36 @@ function shirtSVG(color1,color2){
 function makeShirt(id,p,color,locked,isBench){
   const pts=getPlayerPoints(id,myName);
   const isCaptain=state.captains&&state.captains[myName]===id;
-  const sel=swapFirst===id?'outline:3px solid #f0c040;outline-offset:3px;border-radius:8px;':'';
-  const drag=!locked?'draggable="true" ondragstart="dragStart(event,'+id+')" ondragover="event.preventDefault();dragOver('+id+')" ondrop="dragDrop(event,'+id+')" ondragleave="dragLeave('+id+')" onclick="shirtClick('+id+')"':'';
-  const recentPts=(state.matchdays||[]).slice(-3).map(md=>{
-    const e=md.entries&&md.entries.find(e=>e.playerId===id);
-    return e?e.pts:null;
-  }).filter(x=>x!==null);
-  const bubbles=recentPts.map(rp=>
-    '<span class="pts-bubble'+(rp>0?' pos':rp<0?' neg':'')+'">'+(rp>0?'+':'')+rp+'</span>'
-  ).join('');
-  return '<div class="shirt-wrap'+(isBench?' is-bench':'')+'" id="shirt-'+id+'" style="'+sel+'" '+drag+'>'
-    +(isCaptain?'<div class="captain-badge">C</div>':'')
-    +shirtSVG(color,'#fff')
-    +'<div class="shirt-name-pill">'
-    +'<span class="shirt-player-name">'+p.name.split(' ').pop()+'</span>'
-    +(pts>0?'<span class="shirt-player-pts">'+pts+(isCaptain?' ×2':'')+' pts</span>':'')
+  const isSelected=swapFirst===id;
+  const flagUrl=getPlayerFlagUrl(p.nation)||'';
+  const flag=state.playerFlags?.[id];
+  const sel=isSelected?'outline:3px solid #f0c040;outline-offset:2px;border-radius:8px;transform:scale(1.08);':'';
+  const drag=!locked?'draggable="true" ondragstart="dragStart(event,'+id+')" ondragover="event.preventDefault()" ondrop="dragDrop(event,'+id+')" onclick="shirtClick('+id+')"':'';
+  const shirtSize=isBench?44:52;
+  return '<div class="shirt-wrap'+(isBench?' is-bench':'')+'" id="shirt-'+id+'" style="width:'+(isBench?56:68)+'px;'+sel+'" '+drag+'>'
+    // captain badge
+    +(isCaptain?'<div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);background:#f0c040;color:#1a1a1a;font-size:9px;font-weight:800;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:3;box-shadow:0 1px 4px rgba(0,0,0,0.4)">C</div>':'')
+    // injury/suspend badge
+    +(flag?'<div style="position:absolute;top:-4px;right:0;font-size:11px;z-index:3">'+(flag==='injured'?'🚑':'🚫')+'</div>':'')
+    // shirt svg
+    +'<div style="position:relative">'
+    +'<svg class="shirt-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" width="'+shirtSize+'" height="'+shirtSize+'">'
+    +'<defs><filter id="sh'+id+'"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.4"/></filter></defs>'
+    +'<g filter="url(#sh'+id+')">'
+    +'<path d="M20 12 L6 24 L16 27 L16 52 L44 52 L44 27 L54 24 L40 12 C38 7 22 7 20 12Z" fill="'+color+'"/>'
+    +'<path d="M20 12 L6 24 L16 27 L16 20Z" fill="rgba(255,255,255,0.3)"/>'
+    +'<path d="M40 12 L54 24 L44 27 L44 20Z" fill="rgba(255,255,255,0.3)"/>'
+    +'<path d="M20 12 C22 7 38 7 40 12 L36 15 C34 11 26 11 24 15Z" fill="rgba(255,255,255,0.4)"/>'
+    +'</g>'
+    +'</svg>'
+    // flag on shirt
+    +(flagUrl?'<img src="'+flagUrl+'" style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:'+(isBench?14:16)+'px;height:'+(isBench?10:11)+'px;object-fit:cover;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,0.5)" onerror="this.style.display=\'none\'">':'')
     +'</div>'
-    +(bubbles?'<div class="shirt-pts-bubbles">'+bubbles+'</div>':'')
+    // name + pts pill
+    +'<div style="background:rgba(0,0,0,0.85);border-radius:4px;padding:2px 5px;text-align:center;min-width:'+(isBench?50:56)+'px;margin-top:2px">'
+    +'<div style="font-size:'+(isBench?9:10)+'px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:'+(isBench?54:64)+'px">'+p.name.split(' ').pop()+'</div>'
+    +(pts!==0?'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(isBench?11:12)+'px;color:#f0c040;line-height:1.1">'+pts+(isCaptain?' ×2':'')+'</div>':'')
+    +'</div>'
     +'</div>';
 }
 
@@ -4266,11 +4279,14 @@ function buildPitchHTML(name,locked){
   const fwds=squad.filter(p=>p.pos==='AN'&&starters.includes(p.id)).slice(0,fd.AN);
   const bench=squad.filter(p=>!starters.includes(p.id));
   return '<div class="pitch-wrap">'
-    +'<svg class="pitch-lines" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">'
-    +'<rect x="8" y="8" width="284" height="384" rx="4" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>'
-    +'<line x1="8" y1="200" x2="292" y2="200" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>'
-    +'<circle cx="150" cy="200" r="28" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>'
-    +'<rect x="88" y="8" width="124" height="46" rx="2" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>'
+    +'<svg class="pitch-lines" viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg">'
+    +'<rect x="6" y="6" width="288" height="408" rx="4" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>'
+    +'<line x1="6" y1="210" x2="294" y2="210" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>'
+    +'<circle cx="150" cy="210" r="32" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>'
+    +'<rect x="90" y="6" width="120" height="52" rx="2" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>'
+    +'<rect x="110" y="6" width="80" height="22" rx="2" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>'
+    +'<rect x="90" y="362" width="120" height="52" rx="2" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>'
+    +'<circle cx="150" cy="60" r="4" fill="rgba(255,255,255,0.15)"/>'
     +'</svg>'
     +'<div class="pitch-label">Angriff</div><div class="pitch-row">'+fwds.map(shirt).join('')+'</div>'
     +'<div class="pitch-divider"></div>'
@@ -4278,26 +4294,43 @@ function buildPitchHTML(name,locked){
     +'<div class="pitch-divider"></div>'
     +'<div class="pitch-label">Abwehr</div><div class="pitch-row">'+defs.map(shirt).join('')+'</div>'
     +'<div class="pitch-label">Tor</div><div class="pitch-row row-gk">'+(gk?shirt(gk):'')+'</div>'
-    +'<div class="pitch-row row-bank">'
-    +'<div style="width:100%;text-align:center;margin-bottom:6px"><span style="font-size:9px;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;font-weight:700">BANK</span><span style="font-size:9px;color:rgba(255,255,255,0.25);margin-left:8px">— zählt nicht für Punkte</span></div>'
+    +'</div>'
+    // Bench as separate card below pitch
+    +'<div style="background:rgba(0,0,0,0.06);border:1px solid var(--border);border-radius:10px;padding:10px 8px 8px;margin-top:4px">'
+    +'<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;text-align:center;margin-bottom:8px">Ersatzbank</div>'
+    +'<div style="display:flex;justify-content:center;gap:4px;flex-wrap:wrap;background:repeating-linear-gradient(180deg,#1a7a40 0px,#1a7a40 30px,#1e8a47 30px,#1e8a47 60px);border-radius:8px;padding:10px 6px">'
     +bench.map(shirt).join('')
     +'</div></div>';
 }
 
 function buildListHTML(name){
   const squad=(state.squads[name]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
+  const lineup=state.lineups?.[name]||{};
+  const starters=new Set(lineup.starters?.length===11?lineup.starters:autoSuggestLineup(squad,lineup.formation||'4-3-3'));
   const posColors={ST:'#3b82f6',LA:'#f59e0b',MI:'#ec4899',AN:'#4ade80'};
   let h='<div class="lineup-list">';
   ['ST','LA','MI','AN'].forEach(pos=>{
-    const grp=squad.filter(p=>p.pos===pos);
+    const grp=squad.filter(p=>p.pos===pos).sort((a,b)=>{
+      const aS=starters.has(a.id)?0:1,bS=starters.has(b.id)?0:1;
+      return aS-bS||b.rating-a.rating;
+    });
     if(!grp.length)return;
     h+='<div style="font-size:11px;font-weight:700;color:'+posColors[pos]+';letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px">'+POS_LABEL[pos]+'</div>';
     grp.forEach(p=>{
-      const pts=getPlayerPoints(p.id);
-      h+='<div class="lineup-row"><span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>'
-        +'<span style="flex:1;font-size:13px;font-weight:600">'+p.name+'</span>'
-        +'<span style="font-size:11px;color:var(--muted)">'+p.nation+'</span>'
-        +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--green2);margin-left:8px">'+pts+'</span>'
+      const pts=getPlayerPoints(p.id,name);
+      const isCaptain=state.captains?.[name]===p.id;
+      const isBench=!starters.has(p.id);
+      const flagUrl=getPlayerFlagUrl(p.nation)||'';
+      const flag=state.playerFlags?.[p.id];
+      h+='<div class="lineup-row'+(isBench?' is-bench':'')+'" onclick="openPlayerModal('+p.id+')">'
+        +'<span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>'
+        +(flagUrl?'<img src="'+flagUrl+'" style="width:18px;border-radius:2px" onerror="this.style.display=\'none\'">':'')
+        +'<span style="flex:1;font-size:13px;font-weight:'+(isBench?400:600)+'">'+p.name
+          +(isCaptain?' <span style="background:#f0c040;color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:10px;font-weight:700">C</span>':'')
+          +(flag?'<span style="margin-left:4px">'+(flag==='injured'?'🚑':'🚫')+'</span>':'')
+        +'</span>'
+        +(isBench?'<span style="font-size:10px;background:#f3f4f6;border-radius:4px;padding:2px 6px;color:var(--muted)">Bank</span>':'')
+        +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:'+(pts>0?'var(--green2)':'var(--muted)')+';margin-left:8px">'+pts+'</span>'
         +'</div>';
     });
   });
@@ -4310,20 +4343,29 @@ function renderAufstellung(){
   const hasTeam=myName&&state.squads&&state.squads[myName]&&state.squads[myName].length>0;
   const formation=hasTeam?getLineup(myName).formation:'4-3-3';
   const locked=isLineupLocked(myName);
-  let html='<div class="pitch-actions">';
-  if(!locked){
-    html+='<div class="formation-pills" id="formation-pills">';
+
+  // FPL-style top bar
+  let html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap">';
+  // Pitch / List toggle (FPL style)
+  html+='<div class="view-toggle">'
+    +'<button'+(pitchView==='pitch'?' class="active"':'')+' onclick="setPitchView(\'pitch\')">⚽ Feld</button>'
+    +'<button'+(pitchView==='list'?' class="active"':'')+' onclick="setPitchView(\'list\')">📋 Liste</button>'
+    +'</div>';
+  // Save button
+  if(hasTeam&&!locked)html+='<button class="btn btn-primary btn-sm" onclick="saveLineup(\''+formation+'\')">💾 Speichern</button>';
+  html+='</div>';
+
+  // Formation pills (only in pitch view)
+  if(pitchView==='pitch'&&!locked&&hasTeam){
+    html+='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">';
     ['4-3-3','4-4-2','3-5-2','4-2-3-1','3-4-3','5-3-2'].forEach(f=>{
       html+='<button class="fp-btn'+(formation===f?' active':'')+'" onclick="changeFormationPill(\''+f+'\',this)">'+f+'</button>';
     });
     html+='</div>';
   }
-  html+='<div style="margin-left:auto;display:flex;gap:6px">';
-  html+='<button class="btn btn-outline btn-sm'+(pitchView==='pitch'?' active':'')+'" onclick="setPitchView(\'pitch\')">⚽ Feld</button>';
-  html+='<button class="btn btn-outline btn-sm'+(pitchView==='list'?' active':'')+'" onclick="setPitchView(\'list\')">📋 Liste</button>';
-  if(hasTeam&&!locked)html+='<button class="btn btn-primary btn-sm" onclick="saveLineup(\''+formation+'\')">💾 Speichern</button>';
-  html+='</div></div>';
+
   html+='<div id="lineup-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b;margin-bottom:10px"></div>';
+
   if(!hasTeam){
     html+=buildEmptyPitch(formation);
     html+='<div style="text-align:center;padding:12px;font-size:13px;color:var(--muted)">⏳ Dein Team erscheint hier nach dem Draft</div>';
@@ -4331,7 +4373,12 @@ function renderAufstellung(){
     html+=buildListHTML(myName);
   } else {
     html+=buildPitchHTML(myName,locked);
-    if(!locked&&swapFirst!==null)html+='<div class="swap-hint"><span>📱 Tippe zwei Spieler zum Tauschen</span><span>🖥️ Drag & Drop auf Desktop</span></div>';
+    if(!locked){
+      if(swapFirst!==null)
+        html+='<div style="background:#fef9c3;border-radius:8px;padding:8px 12px;font-size:12px;color:#713f12;text-align:center;margin-top:4px">🔄 Spieler ausgewählt — tippe einen anderen zum Tauschen</div>';
+      else
+        html+='<div style="text-align:center;padding:4px 0 8px;font-size:11px;color:var(--muted)">Tippen oder Drag & Drop zum Tauschen · Captain: C-Button auf Karte</div>';
+    }
   }
   el.innerHTML=html;
 }
