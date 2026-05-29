@@ -1577,9 +1577,12 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
 }
 
 async function createLiga(){
-  const name=(document.getElementById('new-liga-name')?.value||'').trim();
-  if(!name){toast('Bitte Liga-Name eingeben!');return;}
-  const maxSize=parseInt(document.getElementById('new-liga-size')?.value||'8');
+  const nameInput=document.querySelector('#create-liga-name')||document.querySelector('input[placeholder*="Liga-Name"]')||document.querySelector('input[placeholder*="Liga"]');
+  const name=(nameInput?.value||'').trim();
+  console.log('Liga Name Input:',nameInput);
+  console.log('Liga Name Value:',name);
+  if(!name){toast('Bitte Liga-Name eingeben!');console.error('Input nicht gefunden oder leer');return;}
+  const maxSize=parseInt(document.getElementById('create-liga-size')?.value||'8');
   let code=generateLigaCode();
   const ligaId='liga_'+Date.now();
   const ligaData={
