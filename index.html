@@ -1299,20 +1299,16 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   <!-- PUNKTE -->
   <div class="view" id="view-punkte">
     <div class="card" style="border-left:3px solid #4ade80">
-      <div class="card-title">⚡ Auto-Import aus WM-Daten</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Punkte automatisch aus football-data.org berechnen — Tore, Assists, Karten, Clean Sheets.</p>
-      <div id="import-match-wrap">
-        <select id="import-match-select" style="width:100%;padding:9px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;margin-bottom:10px">
-          <option value="">— Spiel auswählen —</option>
-        </select>
-        <button class="btn btn-primary" onclick="previewAutoImport()" style="width:100%">⚡ Punkte berechnen</button>
-        <div id="import-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center"></div>
-      </div>
+      <div class="card-title">🤖 Automatischer Platform-Sync</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Alle abgeschlossenen WM-Spiele werden automatisch importiert und per Runde (Gruppenphase R1, R2, R3, Achtelfinale…) gruppiert. Gilt für alle Ligen gleichzeitig.</p>
+      <div id="platform-sync-status" style="font-size:13px;margin-bottom:10px;min-height:20px"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="syncPlatformPoints(true)">🔄 Jetzt synchronisieren</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">Läuft auch automatisch alle 15 Minuten · Benötigt football-data.org API-Key</div>
     </div>
     <div class="card">
       <div class="card-title">⚽ Manuell eingeben</div>
       <label>Spieltag-Name</label>
-      <input type="text" id="matchday-name" placeholder="z.B. Gruppenphase Spieltag 1" style="margin-bottom:10px">
+      <input type="text" id="matchday-name" placeholder="z.B. Gruppenphase Runde 1" style="margin-bottom:10px">
       <input class="search-bar" id="pts-search" placeholder="Spieler suchen..." oninput="renderPtsTable()" style="margin-top:8px">
       <div id="pts-table-container"></div>
       <button class="btn btn-primary" style="margin-top:12px" onclick="savePoints()">💾 Punkte speichern</button>
@@ -1535,7 +1531,9 @@ function startAutoSync(){
         updateTradeBadge&&updateTradeBadge();
       }
     }catch(e){/* silent */}
-  },6000);
+    // periodically check for new global match points (throttled inside)
+    syncPlatformPoints(false);
+  },30000); // reduced to 30s to allow platform sync check
 }
 
 // ── MULTI-LIGA ───────────────────────────────────────────────────
@@ -1649,6 +1647,8 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   requestNotificationPermission();
   _updateNotifBadge();
   toast('🏆 '+ligaName);
+  // fire-and-forget: merge global match points, then check for new ones
+  mergeGlobalPointsIntoLiga().then(()=>syncPlatformPoints(false));
 }
 
 async function createLiga(){
@@ -3581,7 +3581,10 @@ function renderAdminContent(){
     ];
     el.innerHTML=`
       <div class="admin-card" style="margin-bottom:12px">
-        <button class="btn-admin-action" style="width:100%" onclick="closeAdmin();showView('punkte',null)">⚽ Spieltag-Punkte eingeben</button>
+        <div style="font-size:11px;color:#9de0b8;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Spieltag-Punkte</div>
+        <div id="platform-sync-status-admin" style="font-size:12px;color:#9de0b8;margin-bottom:8px;min-height:16px"></div>
+        <button class="btn-admin-action" style="width:100%;margin-bottom:6px;background:#166534;border-color:#22c55e;color:#dcfce7" onclick="syncPlatformPoints(true).then(()=>{const el=document.getElementById('platform-sync-status-admin');if(el){const src=document.getElementById('platform-sync-status');if(src)el.innerHTML=src.innerHTML;}})">🤖 Auto-Sync (alle Ligas)</button>
+        <button class="btn-admin-action" style="width:100%" onclick="closeAdmin();showView('punkte',null)">⚽ Punkte manuell eingeben</button>
       </div>
       <div class="admin-card"><h3>🔑 API-Football Key</h3>
         <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Für automatische Live-Spielerdaten nach WM-Spielen.</p>
@@ -4591,6 +4594,25 @@ async function fetchFDOMatchDetail(matchId){
   }catch(e){return null;}
 }
 
+function getMatchRound(match){
+  const stage=match.stage||'GROUP_STAGE';
+  if(stage==='GROUP_STAGE'||!stage){
+    const md=match.matchday||1;
+    return{key:'group_'+md,label:'Gruppenphase Runde '+md,order:md};
+  }
+  const map={
+    'ROUND_OF_32':{key:'r32',label:'Runde der 32',order:4},
+    'LAST_32':{key:'r32',label:'Runde der 32',order:4},
+    'ROUND_OF_16':{key:'r16',label:'Achtelfinale',order:5},
+    'LAST_16':{key:'r16',label:'Achtelfinale',order:5},
+    'QUARTER_FINALS':{key:'qf',label:'Viertelfinale',order:6},
+    'SEMI_FINALS':{key:'sf',label:'Halbfinale',order:7},
+    'THIRD_PLACE':{key:'tp',label:'Spiel um Platz 3',order:8},
+    'FINAL':{key:'final',label:'Finale',order:9}
+  };
+  return map[stage]||{key:stage.toLowerCase(),label:stage,order:10};
+}
+
 function calcMatchPoints(matchDetail){
   if(!matchDetail)return[];
   const s=state.scoring||{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3};
@@ -4603,7 +4625,7 @@ function calcMatchPoints(matchDetail){
 
   // Goals & Assists
   (matchDetail.goals||[]).forEach(g=>{
-    if(g.type==='OWN'){return;} // no points for own goals
+    if(g.type==='OWN')return;
     const scorer=matchFDOPlayer(g.scorer?.name||g.scorer?.shortName);
     if(scorer){
       const pts=scorer.pos==='ST'?s.goalAN:scorer.pos==='LA'?s.goalLA:scorer.pos==='MI'?s.goalMI:s.goalAN;
@@ -4624,14 +4646,13 @@ function calcMatchPoints(matchDetail){
     }
   });
 
-  // Clean sheets
+  // Clean sheets — all players (not just drafted), filtering happens at merge time
   const hScore=matchDetail.score?.fullTime?.home??null;
   const aScore=matchDetail.score?.fullTime?.away??null;
   if(hScore!==null&&aScore!==null){
     const homeTeam=FDO_TEAM_DE[matchDetail.homeTeam?.name]||matchDetail.homeTeam?.name||'';
     const awayTeam=FDO_TEAM_DE[matchDetail.awayTeam?.name]||matchDetail.awayTeam?.name||'';
-    const drafted=Object.values(state.squads||{}).flatMap(sq=>sq);
-    PLAYERS.filter(p=>drafted.includes(p.id)).forEach(p=>{
+    PLAYERS.forEach(p=>{
       const pNation=(p.nation||'').toLowerCase();
       const isHome=pNation.includes(homeTeam.toLowerCase())||homeTeam.toLowerCase().includes(normName(pNation).split(' ').pop());
       const isAway=pNation.includes(awayTeam.toLowerCase())||awayTeam.toLowerCase().includes(normName(pNation).split(' ').pop());
@@ -4647,6 +4668,101 @@ function calcMatchPoints(matchDetail){
   }
 
   return entries.filter(e=>e.pts!==0);
+}
+
+// ── PLATFORM-WIDE AUTO-SYNC ──────────────────────────────────────
+let _syncRunning=false;
+let _lastPlatformSync=parseInt(localStorage.getItem('fwm_last_psync')||'0');
+
+async function syncPlatformPoints(force=false){
+  if(_syncRunning)return;
+  const key=fdoKey||localStorage.getItem('fwm_fdo_key');
+  if(!key)return;
+  const now=Date.now();
+  if(!force&&now-_lastPlatformSync<15*60*1000){mergeGlobalPointsIntoLiga();return;}
+  _syncRunning=true;
+  const statusEl=document.getElementById('platform-sync-status');
+  if(statusEl)statusEl.innerHTML='<span style="color:#f0c040">⏳ Sync läuft...</span>';
+  try{
+    const matches=await fetchFDOMatches(true);
+    if(!matches){_syncRunning=false;return;}
+    const finished=matches.filter(m=>m.status==='FINISHED');
+    let pp={rounds:{},processedIds:[]};
+    try{
+      const{data}=await db.from('liga_state').select('data').eq('id','wm2026_points').single();
+      if(data?.data)pp=data.data;
+    }catch(e){}
+    if(!pp.rounds)pp.rounds={};
+    if(!pp.processedIds)pp.processedIds=[];
+    const processed=new Set(pp.processedIds);
+    const newMatches=finished.filter(m=>!processed.has(String(m.id)));
+    if(!newMatches.length){
+      _lastPlatformSync=now;localStorage.setItem('fwm_last_psync',now);
+      if(statusEl)statusEl.innerHTML='<span style="color:#4ade80">✅ Alles aktuell ('+finished.length+' Spiele)</span>';
+      await mergeGlobalPointsIntoLiga(pp);
+      _syncRunning=false;return;
+    }
+    let count=0;
+    for(const match of newMatches){
+      if(statusEl)statusEl.innerHTML='<span style="color:#f0c040">⏳ '+(count+1)+'/'+newMatches.length+' Spiele...</span>';
+      const detail=await fetchFDOMatchDetail(match.id);
+      if(detail){
+        const round=getMatchRound(match);
+        const entries=calcMatchPoints(detail);
+        if(!pp.rounds[round.key])pp.rounds[round.key]={name:round.label,order:round.order,pts:{},matchIds:[]};
+        entries.forEach(e=>{pp.rounds[round.key].pts[e.playerId]=(pp.rounds[round.key].pts[e.playerId]||0)+e.pts;});
+        if(!pp.rounds[round.key].matchIds.includes(match.id))pp.rounds[round.key].matchIds.push(match.id);
+        count++;
+        // Save progress every 5 games
+        if(count%5===0){
+          pp.processedIds=[...processed,...newMatches.slice(0,count).map(m=>String(m.id))];
+          await db.from('liga_state').upsert({id:'wm2026_points',data:{...pp},updated_at:new Date().toISOString()},{onConflict:'id'});
+        }
+      }
+      processed.add(String(match.id));
+      await new Promise(r=>setTimeout(r,700)); // respect 10 req/min limit
+    }
+    pp.processedIds=[...processed];
+    pp.lastUpdated=new Date().toISOString();
+    await db.from('liga_state').upsert({id:'wm2026_points',data:pp,updated_at:new Date().toISOString()},{onConflict:'id'});
+    _lastPlatformSync=now;localStorage.setItem('fwm_last_psync',now);
+    const totalProcesed=pp.processedIds.length;
+    if(statusEl)statusEl.innerHTML='<span style="color:#4ade80">✅ '+count+' neue Spiele importiert · '+totalProcesed+' gesamt</span>';
+    await mergeGlobalPointsIntoLiga(pp);
+    if(count>0)sendNotif('⚽ Neue Punkte!',count+' Spiele verarbeitet','liga');
+  }catch(e){
+    console.error('Platform sync error:',e);
+    if(statusEl)statusEl.innerHTML='<span style="color:#f87171">❌ '+e.message+'</span>';
+  }
+  _syncRunning=false;
+}
+
+async function mergeGlobalPointsIntoLiga(pp){
+  if(!state||!currentLigaId)return;
+  if(!pp){
+    try{
+      const{data}=await db.from('liga_state').select('data').eq('id','wm2026_points').single();
+      if(!data?.data)return;
+      pp=data.data;
+    }catch(e){return;}
+  }
+  const rounds=pp.rounds||{};
+  if(!Object.keys(rounds).length)return;
+  if(!state.matchdays)state.matchdays=[];
+  let changed=false;
+  const sorted=Object.entries(rounds).sort(([,a],[,b])=>(a.order||99)-(b.order||99));
+  for(const[roundKey,round] of sorted){
+    if(!round.pts||!Object.keys(round.pts).length)continue;
+    const entries=Object.entries(round.pts).map(([id,pts])=>({playerId:parseInt(id),pts}));
+    const existing=state.matchdays.find(md=>md.roundKey===roundKey);
+    if(existing){
+      if(JSON.stringify(existing.entries)!==JSON.stringify(entries)){existing.entries=entries;existing.name=round.name;changed=true;}
+    }else{
+      state.matchdays.push({id:roundKey,roundKey,name:round.name,date:new Date().toISOString(),entries});
+      changed=true;
+    }
+  }
+  if(changed){await saveToDB();refreshCurrentView();}
 }
 
 function populateMatchSelect(){
@@ -4743,7 +4859,24 @@ async function applyAutoImportPoints(entries,matchName){
   renderPunkte();
 }
 
-function renderPunkte(){renderPtsTable();renderMatchdayHistory();populateMatchSelect();}
+function renderPunkte(){
+  renderPtsTable();
+  renderMatchdayHistory();
+  populateMatchSelect();
+  // Show sync status
+  const statusEl=document.getElementById('platform-sync-status');
+  if(statusEl&&!statusEl.innerHTML){
+    const pp_ts=_lastPlatformSync;
+    if(pp_ts){
+      const ago=Math.round((Date.now()-pp_ts)/60000);
+      statusEl.innerHTML='<span style="color:var(--muted)">Letzter Sync: vor '+ago+' Min</span>';
+    } else if(fdoKey){
+      statusEl.innerHTML='<span style="color:var(--muted)">Noch kein Sync — API-Key vorhanden</span>';
+    } else {
+      statusEl.innerHTML='<span style="color:#f87171">Kein football-data.org API-Key gesetzt</span>';
+    }
+  }
+}
 
 function renderPtsTable(){
   const el=document.getElementById('pts-table-container');if(!el)return;
