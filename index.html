@@ -2864,10 +2864,11 @@ function renderDraftBoardTable(){
     html+='<tr>';
     html+='<td class="dr-round-label">'+( r+1)+'</td>';
     const isSnakeReverse=ds.draftType==='snake'&&r%2===1;
-    const roundManagers=isSnakeReverse?[...managers].reverse():[...managers];
 
-    roundManagers.forEach((m,colIdx)=>{
-      const pickIdx=r*managers.length+colIdx;
+    managers.forEach((m,colIdx)=>{
+      // In snake rounds, manager at column colIdx picks at the mirrored position
+      const posInRound=isSnakeReverse?(managers.length-1-colIdx):colIdx;
+      const pickIdx=r*managers.length+posInRound;
       const isCurrent=pickIdx===currentPick&&ds.phase==='draft';
       const isDone=pickIdx<currentPick;
       const squad=ds.squads[m]||[];
