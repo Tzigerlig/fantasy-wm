@@ -2206,6 +2206,11 @@ async function resetAll(){
 let state=null;
 let myName=localStorage.getItem('fwm_myname')||null;
 let apiKey=localStorage.getItem('fwm_apikey')||null;
+let fdoKey=localStorage.getItem('fwm_fdo_key')||null;
+let wmMatchCache=null;
+let wmMatchCacheTime=0;
+let wmLiveRefreshTimer=null;
+const FDO_TEAM_DE={'United States':'USA','Mexico':'Mexiko','Germany':'Deutschland','France':'Frankreich','Spain':'Spanien','Brazil':'Brasilien','Portugal':'Portugal','Argentina':'Argentinien','Netherlands':'Niederlande','Switzerland':'Schweiz','Croatia':'Kroatien','Belgium':'Belgien','Denmark':'Dänemark','Morocco':'Marokko','Senegal':'Senegal','England':'England','Japan':'Japan','South Korea':'Südkorea','Uruguay':'Uruguay','Poland':'Polen','Serbia':'Serbien','Cameroon':'Kamerun','Tunisia':'Tunesien','Australia':'Australien','Canada':'Kanada','Saudi Arabia':'Saudi-Arabien','Ghana':'Ghana','Ecuador':'Ecuador','Wales':'Wales','Iran':'Iran','Costa Rica':'Costa Rica'};
 let syncInterval=null;
 let currentLigaId=null;
 let currentLigaCode=null;
@@ -3283,6 +3288,14 @@ function renderAdminContent(){
         </div>
         <button class="btn-admin-action" onclick="admSaveScoring()">💾 Speichern</button>
       </div>
+      <div class="admin-card"><h3>⚽ football-data.org API Key</h3>
+        <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Für Live-Scores im Spielplan-Tab. Kostenloser Account bei <strong>football-data.org</strong> nötig.</p>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input type="password" id="adm-fdo-key" class="admin-input" placeholder="Dein football-data.org Token..." style="flex:1;margin:0" value="${fdoKey||''}">
+          <button class="btn-admin-action" onclick="admSaveFdoKey()">💾 Speichern</button>
+        </div>
+        <div id="adm-fdo-key-status" style="font-size:12px;color:#9de0b8">${fdoKey?'<span style="color:#4ade80">✓ Key aktiv</span>':'Kein Key — <a href="https://www.football-data.org/client/register" target="_blank" style="color:#f0c040">Hier kostenlos registrieren →</a>'}</div>
+      </div>
       <div class="admin-card"><h3>🔑 API-Football Key</h3>
         <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Für Live-Spielerdaten nach WM-Spielen.</p>
         <div style="display:flex;gap:8px;margin-bottom:6px">
@@ -3464,6 +3477,16 @@ function admSaveApiKey(){
   toast('API-Key gespeichert! 🔑');
 }
 function adminSaveApiKey(){admSaveApiKey();}
+
+function admSaveFdoKey(){
+  const val=(document.getElementById('adm-fdo-key')||{}).value||'';
+  if(!val.trim()){toast('Bitte Key eingeben!');return;}
+  fdoKey=val.trim();
+  localStorage.setItem('fwm_fdo_key',fdoKey);
+  const s=document.getElementById('adm-fdo-key-status');
+  if(s){s.innerHTML='<span style="color:#4ade80">✓ Key aktiv</span>';}
+  toast('football-data.org Key gespeichert! ⚽');
+}
 
 async function adminCreateTestDraft(){
   if(!confirm('Test-Draft mit 4 Demo-Managern erstellen?'))return;
@@ -4585,6 +4608,60 @@ function renderCountdown(){
     </div></div>`;
 }
 
+// ── FOOTBALL-DATA.ORG INTEGRATION ─────────────────────────────
+async function fetchFDOMatches(force=false){
+  const key=fdoKey||localStorage.getItem('fwm_fdo_key');
+  if(!key)return null;
+  const now=Date.now();
+  if(!force&&wmMatchCache&&(now-wmMatchCacheTime)<120000)return wmMatchCache;
+  try{
+    const r=await fetch('https://api.football-data.org/v4/competitions/WC/matches',{headers:{'X-Auth-Token':key}});
+    if(!r.ok){
+      if(r.status===429)toast('⚠️ Rate Limit — bitte kurz warten');
+      else if(r.status===403)toast('❌ Ungültiger football-data.org API Key');
+      throw new Error('HTTP '+r.status);
+    }
+    const data=await r.json();
+    wmMatchCache=data.matches||[];
+    wmMatchCacheTime=now;
+    try{localStorage.setItem('fwm_wm_cache',JSON.stringify({m:wmMatchCache,t:now}));}catch(e2){}
+    return wmMatchCache;
+  }catch(e){
+    console.warn('FDO fetch failed:',e.message);
+    if(!wmMatchCache){
+      try{const c=JSON.parse(localStorage.getItem('fwm_wm_cache')||'null');if(c){wmMatchCache=c.m;wmMatchCacheTime=c.t;}}catch(e2){}
+    }
+    return wmMatchCache;
+  }
+}
+
+function getFDOMatch(fdoMatches,homeDe,awayDe,date){
+  if(!fdoMatches)return null;
+  return fdoMatches.find(m=>{
+    const mDate=m.utcDate?m.utcDate.slice(0,10):'';
+    const mHome=FDO_TEAM_DE[m.homeTeam?.name]||m.homeTeam?.name||'';
+    const mAway=FDO_TEAM_DE[m.awayTeam?.name]||m.awayTeam?.name||'';
+    return mDate===date&&mHome===homeDe&&mAway===awayDe;
+  })||null;
+}
+
+function fmtFDOScore(m){
+  if(!m)return null;
+  const st=m.status;
+  const h=m.score?.fullTime?.home;
+  const a=m.score?.fullTime?.away;
+  if(st==='IN_PLAY'||st==='PAUSED'){
+    const score=(h!=null&&a!=null)?h+' : '+a:'? : ?';
+    const badge=st==='PAUSED'?'HT':'LIVE';
+    const min=m.minute?m.minute+"'":"";
+    return {score,badge,badgeColor:st==='PAUSED'?'#f97316':'#dc2626',sub:badge+(min?' · '+min:'')};
+  }
+  if(st==='FINISHED'){
+    return {score:(h!=null&&a!=null)?h+' : '+a:'? : ?',badge:'FT',badgeColor:'#4b5563',sub:'Abgeschlossen'};
+  }
+  return null;
+}
+
 // ── SPIELPLAN ────────────────────────────────────────────────────
 const SPIELPLAN_GROUPS={
   A:['Gastgeberland','Ecuador','Senegal','Niederlande'],
@@ -4622,27 +4699,70 @@ function switchSpielplanTab(tab,btn){
   renderSpielplanTab(tab);
 }
 
+async function refreshSpielplan(){
+  const key=fdoKey||localStorage.getItem('fwm_fdo_key');
+  if(!key){toast('Kein football-data.org API Key hinterlegt');openAdmin();return;}
+  toast('⏳ Lade Spielplandaten...');
+  const matches=await fetchFDOMatches(true);
+  if(matches){renderSpielplanTab('fixtures');toast('✅ Spielplan aktualisiert');}
+  else toast('❌ Laden fehlgeschlagen');
+}
+
 function renderSpielplanTab(tab){
   const el=document.getElementById('spielplan-content');if(!el)return;
   if(tab==='fixtures'){
+    // Load cache from localStorage on first render
+    if(!wmMatchCache){
+      try{const c=JSON.parse(localStorage.getItem('fwm_wm_cache')||'null');if(c){wmMatchCache=c.m;wmMatchCacheTime=c.t;}}catch(e){}
+    }
+    const key=fdoKey||localStorage.getItem('fwm_fdo_key');
+    const cacheMin=wmMatchCacheTime?Math.round((Date.now()-wmMatchCacheTime)/60000):null;
+    let headerHtml='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px">';
+    if(key&&wmMatchCache){
+      headerHtml+='<div style="font-size:11px;color:#4ade80;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;background:#4ade80;border-radius:50%;display:inline-block"></span>'+(cacheMin!==null?'Vor '+cacheMin+' Min. aktualisiert':'Live-Daten aktiv')+'</div>';
+    } else if(key){
+      headerHtml+='<div style="font-size:11px;color:#f0c040">⏳ Lade Live-Daten...</div>';
+    } else {
+      headerHtml+='<div style="font-size:11px;color:rgba(255,255,255,0.4)">Statische Daten · <span style="color:#f0c040;cursor:pointer" onclick="openAdmin()">API Key hinterlegen</span></div>';
+    }
+    headerHtml+='<button onclick="refreshSpielplan()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:#9de0b8;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer">🔄 Aktualisieren</button>';
+    headerHtml+='</div>';
+
     const grouped={};
     SPIELPLAN_FIXTURES.forEach(f=>{if(!grouped[f.date])grouped[f.date]=[];grouped[f.date].push(f);});
     const mySquad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
-    let html='';
+    let html=headerHtml;
+    let hasLive=false;
     Object.entries(grouped).sort().forEach(([date,games])=>{
       const d=new Date(date+'T12:00:00');
       html+='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:12px 0 6px">'+
         d.toLocaleDateString('de',{weekday:'long',day:'2-digit',month:'long'})+'</div>';
       games.forEach(g=>{
+        const fdoM=getFDOMatch(wmMatchCache,g.home,g.away,date);
+        const fdo=fmtFDOScore(fdoM);
+        if(fdoM&&(fdoM.status==='IN_PLAY'||fdoM.status==='PAUSED'))hasLive=true;
         const myPlayersHere=mySquad.filter(p=>{
           const n=(p.nation||'').split(' ').pop().trim();
           return n===g.home||n===g.away;
         });
-        const result=state.wm_results?.[g.date+'_'+g.home]||null;
+        const staticResult=state.wm_results?.[date+'_'+g.home]||null;
+        // Score display
+        let scoreHtml;
+        if(fdo){
+          scoreHtml='<div style="display:flex;flex-direction:column;align-items:center;gap:2px">'
+            +'<div style="background:'+fdo.badgeColor+';color:#fff;font-family:Bebas Neue,sans-serif;font-size:20px;padding:4px 12px;border-radius:6px;min-width:70px;text-align:center">'+fdo.score+'</div>'
+            +(fdo.badge==='LIVE'?'<div style="font-size:9px;font-weight:700;color:#dc2626;letter-spacing:1px;animation:pulse 1s infinite">'+fdo.sub+'</div>'
+              :'<div style="font-size:9px;color:var(--muted)">'+fdo.sub+'</div>')
+            +'</div>';
+        } else if(staticResult){
+          scoreHtml='<div style="background:#0a1a0e;color:#f0c040;font-family:Bebas Neue,sans-serif;font-size:20px;padding:4px 12px;border-radius:6px;min-width:60px;text-align:center">'+staticResult.home+' : '+staticResult.away+'</div>';
+        } else {
+          scoreHtml='<div style="background:#0a1a0e;color:#f0c040;font-family:Bebas Neue,sans-serif;font-size:20px;padding:4px 12px;border-radius:6px;min-width:60px;text-align:center">'+g.time+'</div>';
+        }
         html+='<div class="fixture-card">';
         html+='<div style="display:flex;align-items:center;gap:8px;justify-content:space-between">';
         html+='<div style="flex:1;text-align:right;font-weight:600;font-size:14px">'+g.home+'</div>';
-        html+='<div style="background:#0a1a0e;color:#f0c040;font-family:Bebas Neue,sans-serif;font-size:20px;padding:4px 12px;border-radius:6px;min-width:60px;text-align:center">'+(result?result.home+' : '+result.away:g.time)+'</div>';
+        html+=scoreHtml;
         html+='<div style="flex:1;font-weight:600;font-size:14px">'+g.away+'</div>';
         html+='</div>';
         html+='<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:4px">Gruppe '+g.group+' · '+g.venue+'</div>';
@@ -4659,6 +4779,11 @@ function renderSpielplanTab(tab){
       });
     });
     el.innerHTML=html||'<div class="empty-state">Keine Spiele</div>';
+    // Auto-refresh when live game is running
+    clearTimeout(wmLiveRefreshTimer);
+    if(hasLive)wmLiveRefreshTimer=setTimeout(()=>renderSpielplanTab('fixtures'),60000);
+    // Async fetch fresh data and re-render
+    if(key){fetchFDOMatches().then(matches=>{if(matches)renderSpielplanTab('fixtures');});}
   } else if(tab==='groups'){
     let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">';
     Object.entries(SPIELPLAN_GROUPS).forEach(([group,teams])=>{
