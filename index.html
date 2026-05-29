@@ -556,6 +556,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .loading-overlay p{color:#a7f3d0;font-size:13px;margin-top:8px;}
 .spinner{width:44px;height:44px;border:3px solid rgba(255,255,255,0.2);border-top-color:#f0c040;border-radius:50%;animation:spin 0.7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .name-entry{position:fixed;inset:0;background:rgba(5,30,15,0.96);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(12px);}
 .name-box{background:#fff;border-radius:20px;padding:36px;width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
 .name-box h2{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--green);margin-bottom:6px;}
@@ -1080,11 +1081,16 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
       </div>
     </div>
 
-    <!-- PWA INSTALL -->
-    <div id="pwa-install-card" class="card" style="display:none">
-      <div class="card-title">📱 App installieren</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Installiere Fantasy WM als App auf deinem Gerät!</p>
-      <button class="btn btn-primary" onclick="triggerInstall()">📱 Als App installieren</button>
+    <!-- PWA INSTALL BUTTON -->
+    <div id="home-install-btn" style="display:none;background:linear-gradient(135deg,#0a4a2e,#0d6b42);border-radius:var(--radius);padding:16px;margin-bottom:12px;cursor:pointer;box-shadow:var(--shadow-md)" onclick="openInstallModal()">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:32px">📱</div>
+        <div>
+          <div style="font-weight:700;color:#fff;font-size:15px">Als App installieren</div>
+          <div style="font-size:12px;color:#9de0b8;margin-top:2px">Zum Homescreen hinzufügen — funktioniert auch offline</div>
+        </div>
+        <div style="margin-left:auto;background:#f0c040;color:#1a1a1a;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700">Installieren →</div>
+      </div>
     </div>
   </div>
   <!-- DRAFT -->
@@ -1286,6 +1292,48 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
       <span class="bn-label">Rangliste</span>
     </button>
   </nav>
+
+  <!-- INSTALL MODAL -->
+  <div id="install-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:800;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:#fff;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;animation:slideUp 0.3s ease">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:48px;margin-bottom:8px">🏆</div>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0a4a2e;margin-bottom:4px">Als App installieren</h2>
+        <p style="font-size:13px;color:#6b7280">Füge Fantasy WM 2026 zum Homescreen hinzu</p>
+      </div>
+      <div id="install-ios" style="display:none">
+        <div style="background:#f0fdf4;border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:13px;color:#166534;margin-bottom:12px">📱 iPhone / iPad</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;background:#0a4a2e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">1</div><div style="font-size:13px">Tippe auf <strong>Teilen</strong> <span style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:12px">⬆️</span> unten in Safari</div></div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;background:#0a4a2e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">2</div><div style="font-size:13px">Wähle <strong>"Zum Home-Bildschirm"</strong> <span style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:12px">➕</span></div></div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;background:#0a4a2e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">3</div><div style="font-size:13px">Tippe oben rechts auf <strong>"Hinzufügen"</strong></div></div>
+          </div>
+        </div>
+        <div style="background:#fef9c3;border-radius:8px;padding:10px 12px;font-size:12px;color:#854d0e">⚠️ Funktioniert nur in <strong>Safari</strong> — nicht in Chrome oder anderen Browsern</div>
+      </div>
+      <div id="install-android" style="display:none">
+        <div style="background:#f0fdf4;border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:13px;color:#166534;margin-bottom:12px">🤖 Android</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;background:#0a4a2e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">1</div><div style="font-size:13px">Tippe auf <strong>Menü</strong> <span style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:12px">⋮</span> oben rechts in Chrome</div></div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;background:#0a4a2e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">2</div><div style="font-size:13px">Wähle <strong>"App installieren"</strong> oder <strong>"Zum Startbildschirm"</strong></div></div>
+            <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;background:#0a4a2e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">3</div><div style="font-size:13px">Tippe auf <strong>"Installieren"</strong> im Dialog</div></div>
+          </div>
+        </div>
+      </div>
+      <div id="install-desktop" style="display:none">
+        <div style="background:#f0fdf4;border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:13px;color:#166534;margin-bottom:12px">💻 Desktop (Chrome / Edge)</div>
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;background:#0a4a2e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">1</div><div style="font-size:13px">Klicke auf das <span style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:12px">⊕</span> Icon in der Adressleiste</div></div>
+        </div>
+      </div>
+      <div id="install-btn-wrap" style="display:none;margin-bottom:12px">
+        <button onclick="triggerInstall()" style="width:100%;background:linear-gradient(135deg,#0a4a2e,#0d6b42);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📱 Jetzt installieren</button>
+      </div>
+      <button onclick="closeInstallModal()" style="width:100%;background:none;border:1px solid #e5e7eb;border-radius:10px;padding:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;color:#6b7280">Später</button>
+    </div>
+  </div>
 </div>
 
 <div id="admin-panel" class="admin-panel" style="display:none">
@@ -1820,6 +1868,13 @@ function completeLogin(){
   if(isAdmin)localStorage.setItem('fwm_is_admin','true');
   document.getElementById('liga-select').style.display='block';
   renderLigaSelect();
+  const loginCount=parseInt(localStorage.getItem('fwm_login_count')||'0');
+  localStorage.setItem('fwm_login_count',String(loginCount+1));
+  setTimeout(()=>{
+    const isInstalled=window.matchMedia('(display-mode: standalone)').matches;
+    const dismissed=localStorage.getItem('fwm_install_dismissed');
+    if(!isInstalled&&!dismissed&&loginCount<=1)openInstallModal();
+  },3000);
 }
 
 let rulesVisible=false;
@@ -1851,6 +1906,17 @@ function renderSetup(){
   if(sl)sl.value=shareUrl;
   const qr=document.getElementById('qr-code');
   if(qr)qr.src='https://api.qrserver.com/v1/create-qr-code/?size=80x80&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent(shareUrl);
+
+  // ── INSTALL BUTTON VISIBILITY ──────────────────
+  const isInstalled=window.matchMedia('(display-mode: standalone)').matches;
+  const installBtn=document.getElementById('home-install-btn');
+  if(installBtn){
+    if(isInstalled){
+      installBtn.style.display='none';
+    } else if(deferredInstallPrompt||/iPad|iPhone|iPod|Android/.test(navigator.userAgent)){
+      installBtn.style.display='flex';
+    }
+  }
 
   // ── WM COUNTDOWN ──────────────────────────────
   const wmEl=document.getElementById('home-wm-countdown');
@@ -4578,35 +4644,51 @@ function renderSpielplanTab(tab){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
-let deferredPrompt=null;
-
-function showInstallButton(){
-  const card=document.getElementById('pwa-install-card');
-  if(card)card.style.display='block';
-}
-
-function triggerInstall(){
-  if(!deferredPrompt)return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(()=>{
-    deferredPrompt=null;
-    const card=document.getElementById('pwa-install-card');
-    if(card)card.style.display='none';
-  });
-}
+let deferredInstallPrompt=null;
 
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
-  deferredPrompt=e;
-  showInstallButton();
+  deferredInstallPrompt=e;
+  const btn=document.getElementById('home-install-btn');
+  if(btn)btn.style.display='flex';
 });
 
 window.addEventListener('appinstalled',()=>{
-  deferredPrompt=null;
-  const card=document.getElementById('pwa-install-card');
-  if(card)card.style.display='none';
-  toast('App installiert! 🎉');
+  deferredInstallPrompt=null;
+  toast('✅ App installiert! Du findest sie auf deinem Homescreen.');
+  closeInstallModal();
+  const btn=document.getElementById('home-install-btn');
+  if(btn)btn.style.display='none';
 });
+
+function openInstallModal(){
+  const modal=document.getElementById('install-modal');
+  if(!modal)return;
+  const isInstalled=window.matchMedia('(display-mode: standalone)').matches;
+  if(isInstalled){toast('App ist bereits installiert! ✅');return;}
+  modal.style.display='flex';
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  const isAndroid=/Android/.test(navigator.userAgent);
+  document.getElementById('install-ios').style.display=isIOS?'block':'none';
+  document.getElementById('install-android').style.display=isAndroid?'block':'none';
+  document.getElementById('install-desktop').style.display=(!isIOS&&!isAndroid)?'block':'none';
+  const btnWrap=document.getElementById('install-btn-wrap');
+  if(btnWrap)btnWrap.style.display=deferredInstallPrompt?'block':'none';
+}
+
+function closeInstallModal(){
+  const modal=document.getElementById('install-modal');
+  if(modal)modal.style.display='none';
+  localStorage.setItem('fwm_install_dismissed','true');
+}
+
+async function triggerInstall(){
+  if(!deferredInstallPrompt)return;
+  deferredInstallPrompt.prompt();
+  const{outcome}=await deferredInstallPrompt.userChoice;
+  if(outcome==='accepted'){toast('🎉 App wird installiert!');closeInstallModal();}
+  deferredInstallPrompt=null;
+}
 
 function openAdmin(){showAdminPanel();}
 
