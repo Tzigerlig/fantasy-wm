@@ -518,12 +518,11 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .admin-overlay{position:fixed;inset:0;background:rgba(5,10,5,0.95);display:flex;align-items:center;justify-content:center;z-index:2000;backdrop-filter:blur(8px);}
 .admin-login-box{background:#fff;border-radius:16px;padding:32px;width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
 .admin-login-box h2{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#c62828;margin-bottom:4px;}
-.admin-panel{position:fixed;inset:0;background:#0a1a0e;z-index:1900;overflow-y:auto;color:#fff;}
-.admin-header{background:linear-gradient(135deg,#c62828,#d32f2f);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;}
-.admin-header h1{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;}
-.admin-section{padding:20px;max-width:800px;margin:0 auto;}
-.admin-card{background:#1a2e1a;border:1px solid #2d4a2d;border-radius:var(--radius);padding:16px;margin-bottom:14px;}
-.admin-card h3{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#9de0b8;margin-bottom:10px;letter-spacing:0.5px;}
+.admin-panel{position:fixed;inset:0;background:#0f1a12;z-index:1900;overflow-y:auto;color:#fff;display:flex;flex-direction:column;}
+.admin-header{background:linear-gradient(135deg,#1a0a0a,#2d1515);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;}
+.admin-section{padding:20px;max-width:860px;margin:0 auto;width:100%;flex:1;}
+.admin-card{background:#1a2e1a;border:1px solid #2d4a2d;border-radius:12px;padding:18px;margin-bottom:14px;}
+.admin-card h3{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#9de0b8;margin-bottom:12px;letter-spacing:0.5px;display:flex;align-items:center;gap:8px;}
 .admin-stat{display:inline-flex;flex-direction:column;align-items:center;background:#0d2a0d;border-radius:var(--radius-sm);padding:10px 16px;margin:4px;}
 .admin-stat-val{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#f0c040;}
 .admin-stat-lbl{font-size:10px;color:#9de0b8;text-transform:uppercase;letter-spacing:0.5px;}
@@ -538,8 +537,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .admin-input:focus{border-color:#4ade80;outline:none;}
 .admin-select{background:#0d2a0d;border:1px solid #2d4a2d;color:#fff;border-radius:6px;padding:6px 10px;font-size:13px;font-family:'DM Sans',sans-serif;}
 .draft-order-preview{background:#0d2a0d;border-radius:var(--radius-sm);padding:10px;margin-top:8px;font-size:12px;color:#9de0b8;max-height:100px;overflow-y:auto;line-height:2;}
-.admin-tabs{display:flex;background:#0d2a0d;border-bottom:1px solid #2d4a2d;overflow-x:auto;}
-.admin-tab{background:none;border:none;color:rgba(255,255,255,0.4);padding:12px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;}
+.admin-tabs{display:flex;background:#0d1a0f;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 16px;flex-shrink:0;overflow-x:auto;}
+.admin-tab{background:none;border:none;color:rgba(255,255,255,0.4);padding:14px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;}
 .admin-tab:hover{color:#9de0b8;}
 .admin-tab.active{color:#f0c040;border-bottom-color:#f0c040;}
 .adm-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
@@ -977,7 +976,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
     <button class="nav-btn" onclick="showView('live',this)"><span class="nav-emoji">🔴</span><span class="nav-text"> Live</span></button>
     <button class="nav-btn" onclick="showView('spielplan',this)"><span class="nav-emoji">🗓️</span><span class="nav-text"> Spielplan</span></button>
     <button class="nav-btn" onclick="showView('rangliste',this)"><span class="nav-emoji">🏅</span><span class="nav-text"> Liga</span></button>
-    <button class="nav-btn" id="nav-admin-btn" onclick="showView('admin-direct',this)" style="display:none"><span class="nav-emoji">⚙️</span><span class="nav-text"> Admin</span></button>
+    <button class="nav-btn" id="nav-admin-btn" onclick="openAdmin()" style="display:none;border-left:1px solid rgba(255,255,255,0.1);margin-left:4px"><span class="nav-emoji">⚙️</span><span class="nav-text" style="color:#f0c040"> Admin</span></button>
   </nav>
 
   <!-- SETUP -->
@@ -1252,11 +1251,14 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 
 <div id="admin-panel" class="admin-panel" style="display:none">
   <div class="admin-header">
-    <h1>⚙️ Admin Panel</h1>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span style="font-size:12px;color:rgba(255,255,255,0.6)">Fantasy WM 2026</span>
-      <button onclick="closeAdmin()" style="background:#991b1b;border:none;color:#fff;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">✕ Schliessen</button>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:8px;font-size:20px">⚙️</div>
+      <div>
+        <h1 style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;margin:0">Admin Panel</h1>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5)">Fantasy WM 2026 · Liga-Verwaltung</div>
+      </div>
     </div>
+    <button onclick="closeAdmin()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">✕ Schliessen</button>
   </div>
   <div class="admin-tabs">
     <button class="admin-tab active" onclick="switchAdminTab('liga',this)">📊 Liga</button>
@@ -1279,6 +1281,7 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const LIGA_ID='fantasy_wm_2026_liga1';
 const WM_LEAGUE_ID=1; // FIFA World Cup in API-Football
 const ADMIN_PW='admin2026';
+const ADMIN_NAMES=['Thomas'];
 const WM_SEASON=2026;
 
 const {createClient}=supabase;
@@ -1593,6 +1596,8 @@ function completeLogin(){
   if(ud)ud.textContent='👤 '+myName;
   const sl=document.getElementById('share-link');
   if(sl)sl.value=window.location.origin+window.location.pathname;
+  const isAdmin=ADMIN_NAMES.some(n=>n.toLowerCase()===(myName||'').toLowerCase())||localStorage.getItem('fwm_is_admin')==='true';
+  if(isAdmin)localStorage.setItem('fwm_is_admin','true');
   checkAdminTab();
   renderSetup();
   updatePhaseBadge();
@@ -2821,42 +2826,47 @@ function renderAdminContent(){
   const trades=(state.tradeOffers||[]).length+(state.tradeHistory||[]).length;
 
   if(currentAdminTab==='liga'){
-    const statTiles=[['Manager',ms.length],['Spieler gedraftet',picks],['Spieltage',(state.matchdays||[]).length],['Trades',trades],['Gesamtpunkte',totalPts],['Phase',phase]];
+    const draftedCount=picks;
+    const totalMatchdays=(state.matchdays||[]).length;
+    const totalTrades=trades;
     const draftDone=phase==='active'||phase==='draft';
+    const statItems=[
+      {icon:'👥',val:ms.length,lbl:'Manager'},
+      {icon:'🎯',val:draftedCount,lbl:'Gedraftet'},
+      {icon:'📅',val:totalMatchdays,lbl:'Spieltage'},
+      {icon:'🔄',val:totalTrades,lbl:'Trades'},
+      {icon:'🏆',val:phase,lbl:'Phase'},
+    ];
     const steps=[
-      [true,'Liga erstellt'],
-      [ms.length>=2,'Manager beigetreten ('+ms.length+' bisher)'],
-      [!!state.draftScheduledFor||draftDone, state.draftScheduledFor&&phase==='setup'?'Draft geplant: '+new Date(state.draftScheduledFor).toLocaleString('de',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' Uhr':'Draft geplant'],
-      [draftDone,'Draft abgeschlossen'],
-      [(state.matchdays||[]).length>0,'Spieltage laufen']
+      {done:ms.length>0,label:'Liga erstellt',sub:ms.length+' Manager'},
+      {done:ms.length>=2,label:'Genug Manager',sub:'Mindestens 2 für Draft'},
+      {done:!!state.draftScheduledFor||draftDone,label:'Draft geplant',sub:state.draftScheduledFor?new Date(state.draftScheduledFor).toLocaleString('de',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Noch nicht geplant'},
+      {done:draftDone,label:'Draft läuft/fertig',sub:(state.draftPick||0)+' Picks gemacht'},
+      {done:totalMatchdays>0,label:'Spieltage aktiv',sub:totalMatchdays+' Spieltage'},
     ];
     const lastTrades=(state.tradeHistory||[]).slice(-5).reverse();
     const lastMds=(state.matchdays||[]).slice(-3).reverse();
-    el.innerHTML=`
-      <div class="admin-card"><h3>📊 Liga-Statistiken</h3>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-          ${statTiles.map(([l,v])=>`<div class="admin-stat" style="margin:0"><div class="admin-stat-val" style="font-size:${String(v).length>4?'18px':'26px'}">${v}</div><div class="admin-stat-lbl">${l}</div></div>`).join('')}
-        </div>
-      </div>
-      <div class="admin-card"><h3>🗺️ Liga-Status</h3>
-        <div class="adm-timeline">
-          ${steps.map(([done,label])=>`<div class="adm-timeline-step">
-            <div class="adm-timeline-dot ${done?'done':'pending'}">${done?'✓':'○'}</div>
-            <span style="color:${done?'#9de0b8':'rgba(255,255,255,0.4)'}">${label}</span>
-          </div>`).join('')}
-        </div>
-      </div>
-      ${lastTrades.length?`<div class="admin-card"><h3>🔄 Letzte Trades</h3>
-        ${lastTrades.map(t=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #2d4a2d;color:#9de0b8">${t.from} ⇄ ${t.to} · <span style="color:${t.status==='accepted'?'#4ade80':'#f87171'}">${t.status==='accepted'?'✅':'❌'}</span></div>`).join('')}
-      </div>`:''}
-      ${lastMds.length?`<div class="admin-card"><h3>📅 Letzte Spieltage</h3>
-        ${lastMds.map(md=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #2d4a2d;color:#9de0b8">${md.name} · ${(md.entries||[]).length} Einträge</div>`).join('')}
-      </div>`:''}
-      <div class="admin-card"><h3>🎯 Phase setzen</h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${['setup','draft','active'].map(ph=>`<button class="btn-admin-action" style="${phase===ph?'border-color:#f0c040;color:#f0c040':''}" onclick="admSetPhase('${ph}')">${ph==='setup'?'⚙️ Setup':ph==='draft'?'🎯 Draft':'✅ Aktiv'}</button>`).join('')}
-        </div>
-      </div>`;
+    el.innerHTML=
+      '<div class="admin-card"><h3>📊 Liga-Statistiken</h3>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">'
+      +statItems.map(s=>'<div class="admin-stat" style="margin:0">'
+        +'<div style="font-size:20px;margin-bottom:4px">'+s.icon+'</div>'
+        +'<div class="admin-stat-val" style="font-size:'+(String(s.val).length>4?'18px':'26px')+'">'+s.val+'</div>'
+        +'<div class="admin-stat-lbl">'+s.lbl+'</div>'
+        +'</div>').join('')
+      +'</div></div>'
+      +'<div class="admin-card"><h3>📍 Liga Status</h3>'
+      +steps.map((s,i)=>'<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
+        +'<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;background:'+(s.done?'#166534':'rgba(255,255,255,0.05)')+';color:'+(s.done?'#4ade80':'rgba(255,255,255,0.3)')+'">'+( s.done?'✓':(i+1))+'</div>'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:500;color:'+(s.done?'#fff':'rgba(255,255,255,0.4)')+'">'+s.label+'</div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,0.3)">'+s.sub+'</div></div>'
+        +'</div>').join('')
+      +'</div>'
+      +(lastTrades.length?'<div class="admin-card"><h3>🔄 Letzte Trades</h3>'+lastTrades.map(t=>'<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #2d4a2d;color:#9de0b8">'+t.from+' ⇄ '+t.to+' · <span style="color:'+(t.status==='accepted'?'#4ade80':'#f87171')+'">'+(t.status==='accepted'?'✅':'❌')+'</span></div>').join('')+'</div>':'')
+      +(lastMds.length?'<div class="admin-card"><h3>📅 Letzte Spieltage</h3>'+lastMds.map(md=>'<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #2d4a2d;color:#9de0b8">'+md.name+' · '+(md.entries||[]).length+' Einträge</div>').join('')+'</div>':'')
+      +'<div class="admin-card"><h3>🎯 Phase setzen</h3><div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +['setup','draft','active'].map(ph=>'<button class="btn-admin-action" style="'+(phase===ph?'border-color:#f0c040;color:#f0c040':'')+'" onclick="admSetPhase(\''+ph+'\')">'+(ph==='setup'?'⚙️ Setup':ph==='draft'?'🎯 Draft':'✅ Aktiv')+'</button>').join('')
+      +'</div></div>';
 
   } else if(currentAdminTab==='draft'){
     if(phase==='active'){
@@ -2925,6 +2935,14 @@ function renderAdminContent(){
     el.innerHTML=`
       <div class="admin-card" style="margin-bottom:12px">
         <button class="btn-admin-action" style="width:100%" onclick="closeAdmin();showView('punkte',null)">⚽ Spieltag-Punkte eingeben</button>
+      </div>
+      <div class="admin-card"><h3>🔑 API-Football Key</h3>
+        <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Für automatische Live-Spielerdaten nach WM-Spielen.</p>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input class="admin-input" type="password" id="admin-api-key" placeholder="X-RapidAPI-Key..." style="flex:1;margin:0" value="${apiKey||''}">
+          <button class="btn-admin-action" onclick="admSaveApiKey()">💾 Speichern</button>
+        </div>
+        <div id="admin-api-status" style="font-size:12px;color:${apiKey?'#4ade80':'rgba(255,255,255,0.3)'}">${apiKey?'✓ Key gespeichert':'Kein Key gesetzt'}</div>
       </div>
       <div class="admin-card"><h3>⭐ Punktesystem</h3>
         <div class="adm-grid-2">
@@ -3107,14 +3125,15 @@ async function admResetPin(name){
 }
 
 function admSaveApiKey(){
-  const val=(document.getElementById('adm-api-key')||{}).value||'';
+  const val=(document.getElementById('adm-api-key')||document.getElementById('admin-api-key')||{}).value||'';
   if(!val.trim()){toast('Bitte Key eingeben!');return;}
   apiKey=val.trim();
   localStorage.setItem('fwm_apikey',apiKey);
-  const s=document.getElementById('adm-api-key-status');
-  if(s)s.innerHTML='<span style="color:#4ade80">✓ Key gespeichert</span>';
+  const s=document.getElementById('adm-api-key-status')||document.getElementById('admin-api-status');
+  if(s){s.textContent='✓ Key gespeichert';s.style.color='#4ade80';}
   toast('API-Key gespeichert! 🔑');
 }
+function adminSaveApiKey(){admSaveApiKey();}
 
 async function adminCreateTestDraft(){
   if(!confirm('Test-Draft mit 4 Demo-Managern erstellen?'))return;
