@@ -1240,9 +1240,20 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 
   <!-- PUNKTE -->
   <div class="view" id="view-punkte">
+    <div class="card" style="border-left:3px solid #4ade80">
+      <div class="card-title">⚡ Auto-Import aus WM-Daten</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Punkte automatisch aus football-data.org berechnen — Tore, Assists, Karten, Clean Sheets.</p>
+      <div id="import-match-wrap">
+        <select id="import-match-select" style="width:100%;padding:9px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;margin-bottom:10px">
+          <option value="">— Spiel auswählen —</option>
+        </select>
+        <button class="btn btn-primary" onclick="previewAutoImport()" style="width:100%">⚡ Punkte berechnen</button>
+        <div id="import-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center"></div>
+      </div>
+    </div>
     <div class="card">
-      <div class="card-title">⚽ Spieltag-Punkte eingeben</div>
-      <label>Spieltag / Runde</label>
+      <div class="card-title">⚽ Manuell eingeben</div>
+      <label>Spieltag-Name</label>
       <input type="text" id="matchday-name" placeholder="z.B. Gruppenphase Spieltag 1" style="margin-bottom:10px">
       <input class="search-bar" id="pts-search" placeholder="Spieler suchen..." oninput="renderPtsTable()" style="margin-top:8px">
       <div id="pts-table-container"></div>
@@ -4001,7 +4012,188 @@ function renderManagerDetails(manager){
 }
 
 // ── PUNKTE ────────────────────────────────────────────────────────
-function renderPunkte(){renderPtsTable();renderMatchdayHistory();}
+// ── AUTO-IMPORT PUNKTE ───────────────────────────────────────────
+function normName(s){
+  return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,'').trim();
+}
+
+function matchFDOPlayer(fdoName){
+  const drafted=Object.values(state.squads||{}).flatMap(sq=>sq);
+  const pool=PLAYERS.filter(p=>drafted.includes(p.id));
+  const fn=normName(fdoName);
+  const fLast=fn.split(' ').pop();
+  // 1. Exact last-name match
+  let hit=pool.find(p=>{const pn=normName(p.name);return pn.split(' ').pop()===fLast;});
+  if(hit)return hit;
+  // 2. Any word match
+  const fWords=fn.split(' ').filter(w=>w.length>3);
+  hit=pool.find(p=>{const pn=normName(p.name);return fWords.some(w=>pn.includes(w));});
+  return hit||null;
+}
+
+async function fetchFDOMatchDetail(matchId){
+  const key=fdoKey||localStorage.getItem('fwm_fdo_key');
+  if(!key)return null;
+  try{
+    const r=await fetch('https://api.football-data.org/v4/matches/'+matchId,{headers:{'X-Auth-Token':key}});
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+
+function calcMatchPoints(matchDetail){
+  if(!matchDetail)return[];
+  const s=state.scoring||{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3};
+  const entries=[];
+  const add=(playerId,pts,reason)=>{
+    const ex=entries.find(e=>e.playerId===playerId);
+    if(ex){ex.pts+=pts;ex.reasons.push(reason);}
+    else entries.push({playerId,pts,reasons:[reason]});
+  };
+
+  // Goals & Assists
+  (matchDetail.goals||[]).forEach(g=>{
+    if(g.type==='OWN'){return;} // no points for own goals
+    const scorer=matchFDOPlayer(g.scorer?.name||g.scorer?.shortName);
+    if(scorer){
+      const pts=scorer.pos==='ST'?s.goalAN:scorer.pos==='LA'?s.goalLA:scorer.pos==='MI'?s.goalMI:s.goalAN;
+      add(scorer.id,pts,'⚽ Tor ('+g.minute+"')");
+    }
+    if(g.assist?.name){
+      const asst=matchFDOPlayer(g.assist.name);
+      if(asst)add(asst.id,s.assist,'🎯 Assist ('+g.minute+"')");
+    }
+  });
+
+  // Bookings
+  (matchDetail.bookings||[]).forEach(b=>{
+    const p=matchFDOPlayer(b.player?.name);
+    if(p){
+      if(b.card==='YELLOW_CARD')add(p.id,s.yellow,'🟨 Gelbe Karte');
+      else if(b.card==='RED_CARD')add(p.id,s.red,'🟥 Rote Karte');
+    }
+  });
+
+  // Clean sheets
+  const hScore=matchDetail.score?.fullTime?.home??null;
+  const aScore=matchDetail.score?.fullTime?.away??null;
+  if(hScore!==null&&aScore!==null){
+    const homeTeam=FDO_TEAM_DE[matchDetail.homeTeam?.name]||matchDetail.homeTeam?.name||'';
+    const awayTeam=FDO_TEAM_DE[matchDetail.awayTeam?.name]||matchDetail.awayTeam?.name||'';
+    const drafted=Object.values(state.squads||{}).flatMap(sq=>sq);
+    PLAYERS.filter(p=>drafted.includes(p.id)).forEach(p=>{
+      const pNation=(p.nation||'').toLowerCase();
+      const isHome=pNation.includes(homeTeam.toLowerCase())||homeTeam.toLowerCase().includes(normName(pNation).split(' ').pop());
+      const isAway=pNation.includes(awayTeam.toLowerCase())||awayTeam.toLowerCase().includes(normName(pNation).split(' ').pop());
+      if(isHome&&aScore===0){
+        if(p.pos==='ST')add(p.id,s.csGK,'🧤 Clean Sheet');
+        else if(p.pos==='LA')add(p.id,s.csLA,'🛡️ Clean Sheet');
+      }
+      if(isAway&&hScore===0){
+        if(p.pos==='ST')add(p.id,s.csGK,'🧤 Clean Sheet');
+        else if(p.pos==='LA')add(p.id,s.csLA,'🛡️ Clean Sheet');
+      }
+    });
+  }
+
+  return entries.filter(e=>e.pts!==0);
+}
+
+function populateMatchSelect(){
+  const sel=document.getElementById('import-match-select');
+  if(!sel)return;
+  const finished=(wmMatchCache||[]).filter(m=>m.status==='FINISHED');
+  if(!finished.length){
+    sel.innerHTML='<option value="">Keine abgeschlossenen Spiele</option>';
+    return;
+  }
+  sel.innerHTML='<option value="">— Spiel auswählen —</option>';
+  finished.forEach(m=>{
+    const home=FDO_TEAM_DE[m.homeTeam?.name]||m.homeTeam?.name||'?';
+    const away=FDO_TEAM_DE[m.awayTeam?.name]||m.awayTeam?.name||'?';
+    const score=m.score?.fullTime?.home+' : '+m.score?.fullTime?.away;
+    const date=m.utcDate?.slice(0,10)||'';
+    const opt=document.createElement('option');
+    opt.value=m.id;
+    opt.textContent=home+' '+score+' '+away+' ('+date+')';
+    sel.appendChild(opt);
+  });
+}
+
+async function previewAutoImport(){
+  const sel=document.getElementById('import-match-select');
+  const statusEl=document.getElementById('import-status');
+  const key=fdoKey||localStorage.getItem('fwm_fdo_key');
+  if(!key){toast('Kein football-data.org API Key');openAdmin();return;}
+  const matchId=sel?.value;
+  if(!matchId){toast('Bitte ein Spiel auswählen!');return;}
+  if(statusEl)statusEl.textContent='⏳ Lade Spieldetails...';
+
+  const detail=await fetchFDOMatchDetail(matchId);
+  if(!detail){
+    if(statusEl)statusEl.textContent='❌ Laden fehlgeschlagen';
+    toast('Fehler beim Laden der Spieldetails');
+    return;
+  }
+
+  const entries=calcMatchPoints(detail);
+  if(!entries.length){
+    if(statusEl)statusEl.textContent='Keine Punkte für gedraftete Spieler gefunden';
+    return;
+  }
+  if(statusEl)statusEl.textContent='';
+
+  const home=FDO_TEAM_DE[detail.homeTeam?.name]||detail.homeTeam?.name||'?';
+  const away=FDO_TEAM_DE[detail.awayTeam?.name]||detail.awayTeam?.name||'?';
+  const score=detail.score?.fullTime?.home+' : '+detail.score?.fullTime?.away;
+  const matchName=home+' '+score+' '+away;
+
+  // Build preview modal
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0';
+  const owner=(id)=>Object.entries(state.squads||{}).find(([,sq])=>sq.includes(id))?.[0]||'?';
+  const rows=entries.map(e=>{
+    const p=PLAYERS.find(x=>x.id===e.playerId);
+    if(!p)return'';
+    return`<tr><td style="padding:6px 8px"><strong>${p.name}</strong><div style="font-size:10px;color:#6b7280">${owner(e.playerId)}</div></td>`
+      +`<td style="padding:6px 8px;font-size:11px;color:#6b7280">${e.reasons.join(', ')}</td>`
+      +`<td style="padding:6px 8px;text-align:right;font-family:'Bebas Neue',sans-serif;font-size:18px;color:${e.pts>0?'#166534':'#dc2626'}">${e.pts>0?'+':''}${e.pts}</td></tr>`;
+  }).join('');
+  modal.innerHTML=`<div style="background:#fff;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;animation:slideUp 0.3s ease">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0a4a2e;margin-bottom:4px">⚡ ${matchName}</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:16px">${entries.length} Spieler mit Punkten gefunden</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+      <thead><tr style="border-bottom:2px solid #e5e7eb">
+        <th style="text-align:left;padding:6px 8px;font-size:12px;color:#6b7280">Spieler</th>
+        <th style="text-align:left;padding:6px 8px;font-size:12px;color:#6b7280">Ereignisse</th>
+        <th style="text-align:right;padding:6px 8px;font-size:12px;color:#6b7280">Pts</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <button onclick="applyAutoImportPoints(${JSON.stringify(entries.map(e=>({playerId:e.playerId,pts:e.pts})))}, '${matchName.replace(/'/g,"\\'")}')"
+      style="width:100%;background:linear-gradient(135deg,#0a4a2e,#0d6b42);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px">
+      💾 Punkte speichern
+    </button>
+    <button onclick="this.closest('[style*=fixed]').remove()"
+      style="width:100%;background:none;border:1px solid #e5e7eb;border-radius:10px;padding:12px;font-size:14px;cursor:pointer;color:#6b7280">
+      Abbrechen
+    </button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function applyAutoImportPoints(entries,matchName){
+  document.querySelector('[style*="fixed"][style*="9999"]')?.remove();
+  if(!state.matchdays)state.matchdays=[];
+  const ex=state.matchdays.find(md=>md.name===matchName);
+  if(ex){ex.entries=[...(ex.entries||[]),...entries];}
+  else state.matchdays.push({id:Date.now(),name:matchName,date:new Date().toISOString(),entries});
+  await saveToDB();
+  toast('✅ Punkte für '+matchName+' gespeichert!');
+  renderPunkte();
+}
+
+function renderPunkte(){renderPtsTable();renderMatchdayHistory();populateMatchSelect();}
 
 function renderPtsTable(){
   const el=document.getElementById('pts-table-container');if(!el)return;
