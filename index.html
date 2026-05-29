@@ -1387,7 +1387,7 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 // ── SUPABASE DB ──────────────────────────────────────────────────
 function getDefaultState(){
   return{phase:'setup',managers:[],squads:{},draftOrder:[],draftPick:0,draftType:'snake',
-    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},captains:{},playerFlags:{},
+    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},captains:{},playerFlags:{},waiverLog:[],
     scoring:{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3,pens:5}};
 }
 
@@ -3727,8 +3727,9 @@ function renderMyTeam(){
   const initials=getInitials(myName);
   const headerBg=rank===1?'linear-gradient(135deg,rgba(212,160,23,0.15),rgba(212,160,23,0.05))':rank<=3?'linear-gradient(135deg,rgba(74,222,128,0.1),rgba(74,222,128,0.03))':'var(--card)';
   const headerBorder=rank===1?'rgba(212,160,23,0.35)':rank<=3?'rgba(74,222,128,0.2)':'var(--border)';
-  const tabBarHtml=`<div class="tab-bar" style="margin-bottom:14px"><button class="tab-btn${teamTab==='squad'?' active':''}" onclick="switchTeamTab('squad',this)">👕 Kader</button><button class="tab-btn${teamTab==='lineup'?' active':''}" onclick="switchTeamTab('lineup',this)">📋 Aufstellung</button></div>`;
+  const tabBarHtml=`<div class="tab-bar" style="margin-bottom:14px"><button class="tab-btn${teamTab==='squad'?' active':''}" onclick="switchTeamTab('squad',this)">👕 Kader</button><button class="tab-btn${teamTab==='lineup'?' active':''}" onclick="switchTeamTab('lineup',this)">📋 Aufstellung</button><button class="tab-btn${teamTab==='waiver'?' active':''}" onclick="switchTeamTab('waiver',this)">🔄 Waiver</button></div>`;
   if(teamTab==='lineup'){el.innerHTML=tabBarHtml+'<div id="aufstellung-content"></div>';renderAufstellung();return;}
+  if(teamTab==='waiver'){el.innerHTML=tabBarHtml+'<div id="waiver-content"></div>';renderWaiverWire();return;}
   const cnts={ST:0,LA:0,MI:0,AN:0};
   squad.forEach(p=>cnts[p.pos]=(cnts[p.pos]||0)+1);
   let html=tabBarHtml+`<div class="team-header-card" style="background:${headerBg};border-color:${headerBorder}">
@@ -3810,6 +3811,113 @@ let teamTab='squad';
 
 function switchTeamTab(tab,btn){
   teamTab=tab;
+  renderMyTeam();
+}
+
+function renderWaiverWire(){
+  const el=document.getElementById('waiver-content');
+  if(!el)return;
+  const draftedIds=getDraftedIds();
+  const mySquad=state.squads[myName]||[];
+  const maxSize=state.squadSize||14;
+  const isFull=mySquad.length>=maxSize;
+  const free=PLAYERS.filter(p=>!draftedIds.has(p.id)).sort((a,b)=>b.rating-a.rating);
+  const log=(state.waiverLog||[]).filter(w=>w.manager===myName).slice(-5).reverse();
+  let html='';
+  if(isFull){
+    html+=`<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#713f12">
+      ⚠️ Kader voll (${mySquad.length}/${maxSize}). Du musst einen Spieler droppen um jemanden zu holen.
+    </div>`;
+  }
+  if(!free.length){
+    html+='<div style="text-align:center;color:var(--muted);padding:40px 20px;font-size:14px">Keine freien Spieler verfügbar</div>';
+    el.innerHTML=html;return;
+  }
+  // position filter
+  html+=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+    ${['ALL','ST','LA','MI','AN'].map(pos=>`<button onclick="filterWaiver('${pos}',this)" class="team-pos-tab${pos==='ALL'?' active':''}" style="flex:0 0 auto">${pos==='ALL'?'Alle':POS_LABEL[pos]}<span class="tpt-count">${pos==='ALL'?free.length:free.filter(p=>p.pos===pos).length}</span></button>`).join('')}
+  </div>
+  <div id="waiver-player-list">`;
+  free.forEach(p=>{
+    const flagUrl=getPlayerFlagUrl(p.nation)||'';
+    const flagImg=flagUrl?`<img src="${flagUrl}" style="width:16px;border-radius:2px" onerror="this.style.display='none'">`:'';
+    html+=`<div class="waiver-row" data-pos="${p.pos}" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span class="pos-badge pos-${p.pos}">${POS_LABEL[p.pos]}</span>
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="openPlayerModal(${p.id})">
+        <div style="font-weight:600;font-size:13px">${p.name}${getFlagBadge(p.id)}</div>
+        <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px">${flagImg}${p.nation}</div>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--green2);min-width:28px;text-align:right">${p.rating}</div>
+      ${isFull
+        ?`<button class="btn btn-outline" style="font-size:11px;padding:5px 8px;white-space:nowrap" onclick="openWaiverDrop(${p.id})">+ Holen</button>`
+        :`<button class="btn btn-primary" style="font-size:11px;padding:5px 8px;white-space:nowrap" onclick="claimWaiver(${p.id},null)">+ Holen</button>`
+      }
+    </div>`;
+  });
+  html+='</div>';
+  if(log.length){
+    html+=`<div style="margin-top:18px"><div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Meine letzten Moves</div>`;
+    log.forEach(w=>{
+      const added=PLAYERS.find(p=>p.id===w.added);
+      const dropped=w.dropped?PLAYERS.find(p=>p.id===w.dropped):null;
+      html+=`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px">
+        <span style="color:var(--green3)">+</span><span style="font-weight:600">${added?.name||'?'}</span>
+        ${dropped?`<span style="color:var(--muted)">→ drop</span><span style="color:#f87171">${dropped.name}</span>`:''}
+        <span style="color:var(--muted);margin-left:auto;font-size:10px">${w.date?new Date(w.date).toLocaleDateString('de'):''}</span>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  el.innerHTML=html;
+}
+
+function filterWaiver(pos,btn){
+  document.querySelectorAll('#waiver-content .team-pos-tab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.querySelectorAll('#waiver-player-list .waiver-row').forEach(row=>{
+    row.style.display=(pos==='ALL'||row.dataset.pos===pos)?'flex':'none';
+  });
+}
+
+function openWaiverDrop(addId){
+  const mySquad=state.squads[myName]||[];
+  const opts=mySquad.map(id=>{
+    const p=PLAYERS.find(x=>x.id===id);
+    return p?`<option value="${id}">${p.name} (${POS_LABEL[p.pos]}, ${p.rating})</option>`:'';
+  }).join('');
+  const addPlayer=PLAYERS.find(p=>p.id===addId);
+  const modalHtml=`<div id="waiver-drop-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.remove()">
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:90%;animation:modalIn .22s cubic-bezier(.34,1.56,.64,1)">
+      <div style="font-weight:700;font-size:16px;margin-bottom:6px">Spieler holen</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Wen möchtest du für <strong>${addPlayer?.name}</strong> droppen?</div>
+      <select id="waiver-drop-select" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);font-size:13px;margin-bottom:16px">${opts}</select>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('waiver-drop-modal').remove()">Abbrechen</button>
+        <button class="btn btn-primary" style="flex:1" onclick="claimWaiver(${addId},parseInt(document.getElementById('waiver-drop-select').value));document.getElementById('waiver-drop-modal').remove()">Bestätigen</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',modalHtml);
+}
+
+async function claimWaiver(addId,dropId){
+  if(!myName){toast('Nicht eingeloggt');return;}
+  const mySquad=state.squads[myName]||[];
+  const maxSize=state.squadSize||14;
+  if(!dropId&&mySquad.length>=maxSize){toast('Kader voll — Spieler droppen!');openWaiverDrop(addId);return;}
+  if(mySquad.includes(addId)){toast('Spieler bereits im Kader');return;}
+  if(dropId){
+    const dropIdx=mySquad.indexOf(dropId);
+    if(dropIdx===-1){toast('Spieler zum Droppen nicht gefunden');return;}
+    state.squads[myName].splice(dropIdx,1);
+  }
+  state.squads[myName].push(addId);
+  if(!state.waiverLog)state.waiverLog=[];
+  const addedPlayer=PLAYERS.find(p=>p.id===addId);
+  const droppedPlayer=dropId?PLAYERS.find(p=>p.id===dropId):null;
+  state.waiverLog.push({manager:myName,added:addId,dropped:dropId||null,date:new Date().toISOString()});
+  await saveToDB();
+  toast(`✅ ${addedPlayer?.name||'Spieler'} geholt${droppedPlayer?' · '+droppedPlayer.name+' gedroppt':''}`);
   renderMyTeam();
 }
 let dragFromId=null;
