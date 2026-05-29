@@ -1608,8 +1608,13 @@ async function createLiga(){
 }
 
 async function joinLiga(){
-  const code=(document.getElementById('join-liga-code')?.value||'').trim().toUpperCase();
-  if(!code){toast('Bitte Liga-Code eingeben!');return;}
+  const code=document.querySelector('#join-liga-code, input[placeholder*="LIGA-CODE"], input[placeholder*="Code"]')?.value?.trim().toUpperCase();
+  if(!code||code.length<3){
+    toast('Bitte Liga-Code eingeben!');
+    const input=document.querySelector('#join-liga-code, input[placeholder*="LIGA-CODE"]');
+    if(input){input.style.border='2px solid #f87171';input.focus();setTimeout(()=>input.style.border='',2000);}
+    return;
+  }
   const errEl=document.getElementById('join-liga-error');
   if(errEl)errEl.style.display='none';
   const{data,error}=await db.from('ligen').select('*').eq('code',code).single();
