@@ -907,6 +907,27 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .live-refresh-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;}
 .live-refresh-dot.polling{animation:pulse 1s infinite;}
 
+/* ── NOTIFICATION CENTER ────────────────────────────────────────── */
+#notif-bell-btn{position:relative;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:16px;padding:5px 8px;border-radius:8px;cursor:pointer;line-height:1;}
+#notif-bell-btn:hover{background:rgba(255,255,255,0.18);}
+#notif-bell-badge{position:absolute;top:-4px;right:-4px;background:#c62828;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 3px;}
+#notif-drawer{display:none;position:fixed;top:0;right:0;bottom:0;width:min(340px,100vw);background:#fff;z-index:550;box-shadow:-4px 0 20px rgba(0,0,0,0.15);flex-direction:column;animation:slideInRight .22s ease;}
+#notif-drawer.open{display:flex;}
+@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+#notif-drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:549;}
+#notif-drawer-overlay.open{display:block;}
+.notif-item{padding:12px 16px;border-bottom:1px solid #f3f4f6;cursor:default;}
+.notif-item.unread{background:#f0fdf4;}
+.notif-item-title{font-weight:600;font-size:13px;margin-bottom:2px;}
+.notif-item-body{font-size:12px;color:#6b7280;}
+.notif-item-time{font-size:10px;color:#9ca3af;margin-top:3px;}
+.notif-settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #f3f4f6;}
+.notif-toggle{position:relative;width:40px;height:22px;cursor:pointer;}
+.notif-toggle input{opacity:0;width:0;height:0;}
+.notif-toggle-track{position:absolute;inset:0;background:#d1d5db;border-radius:11px;transition:.2s;}
+.notif-toggle input:checked+.notif-toggle-track{background:var(--green3);}
+.notif-toggle-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+.notif-toggle input:checked~.notif-toggle-thumb{transform:translateX(18px);}
 /* ── PLAYER MODAL ──────────────────────────────────────────────── */
 #player-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:modalBgIn 0.2s ease;}
 @keyframes modalBgIn{from{opacity:0}to{opacity:1}}
@@ -1005,6 +1026,39 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
       <span id="user-display" style="font-size:12px;color:#9de0b8;font-weight:500"></span>
       <button onclick="switchLiga()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#86efac;font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;letter-spacing:0.5px" title="Liga wechseln">⇄ Liga</button>
       <span id="phase-badge" class="phase-badge">Setup</span>
+      <button id="notif-bell-btn" onclick="openNotifDrawer()" title="Benachrichtigungen">🔔<span id="notif-bell-badge"></span></button>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION DRAWER -->
+  <div id="notif-drawer-overlay" onclick="closeNotifDrawer()"></div>
+  <div id="notif-drawer">
+    <div style="padding:16px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;background:#fff;flex-shrink:0">
+      <span style="font-weight:700;font-size:16px">🔔 Benachrichtigungen</span>
+      <button onclick="closeNotifDrawer()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280">✕</button>
+    </div>
+    <div id="notif-list" style="flex:1;overflow-y:auto"></div>
+    <div style="border-top:1px solid #f3f4f6;flex-shrink:0">
+      <div style="padding:12px 16px;font-weight:700;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px">Einstellungen</div>
+      <div class="notif-settings-row">
+        <span style="font-size:13px">Draft-Pick Benachrichtigung</span>
+        <label class="notif-toggle"><input type="checkbox" id="ns-draft" onchange="saveNotifSettings()" checked><span class="notif-toggle-track"></span><span class="notif-toggle-thumb"></span></label>
+      </div>
+      <div class="notif-settings-row">
+        <span style="font-size:13px">Trade-Angebote</span>
+        <label class="notif-toggle"><input type="checkbox" id="ns-trade" onchange="saveNotifSettings()" checked><span class="notif-toggle-track"></span><span class="notif-toggle-thumb"></span></label>
+      </div>
+      <div class="notif-settings-row">
+        <span style="font-size:13px">Liga-Neuigkeiten</span>
+        <label class="notif-toggle"><input type="checkbox" id="ns-liga" onchange="saveNotifSettings()" checked><span class="notif-toggle-track"></span><span class="notif-toggle-thumb"></span></label>
+      </div>
+      <div style="padding:12px 16px">
+        <button id="notif-perm-btn" class="btn btn-primary" style="width:100%;font-size:13px" onclick="requestNotifPermission()">🔔 Benachrichtigungen erlauben</button>
+        <div id="notif-perm-status" style="text-align:center;font-size:11px;color:#6b7280;margin-top:6px"></div>
+      </div>
+      <div style="padding:0 16px 12px">
+        <button class="btn btn-outline" style="width:100%;font-size:12px" onclick="clearNotifLog()">🗑 Verlauf löschen</button>
+      </div>
     </div>
   </div>
 
@@ -1593,6 +1647,7 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   setInterval(renderCountdown,1000);
   startAutoSync();
   requestNotificationPermission();
+  _updateNotifBadge();
   toast('🏆 '+ligaName);
 }
 
@@ -1810,17 +1865,148 @@ function shareNative(){
   }
 }
 
-function requestNotificationPermission(){
-  if('Notification' in window && Notification.permission==='default'){
-    Notification.requestPermission();
+// ── NOTIFICATION CENTER ────────────────────────────────────────────
+let _notifLog=JSON.parse(localStorage.getItem('fwm_notif_log')||'[]');
+let _notifSettings=JSON.parse(localStorage.getItem('fwm_notif_settings')||'{"draft":true,"trade":true,"liga":true}');
+let _notifUnread=0;
+
+function _saveNotifLog(){
+  try{localStorage.setItem('fwm_notif_log',JSON.stringify(_notifLog.slice(-50)));}catch(e){}
+}
+
+function addToNotifLog(title,body,category){
+  const entry={title,body,category:category||'liga',time:Date.now(),read:false};
+  _notifLog.unshift(entry);
+  _notifUnread=_notifLog.filter(n=>!n.read).length;
+  _saveNotifLog();
+  _updateNotifBadge();
+}
+
+function _updateNotifBadge(){
+  const badge=document.getElementById('notif-bell-badge');
+  if(!badge)return;
+  if(_notifUnread>0){badge.textContent=_notifUnread>9?'9+':_notifUnread;badge.style.display='flex';}
+  else{badge.style.display='none';}
+}
+
+function openNotifDrawer(){
+  document.getElementById('notif-drawer')?.classList.add('open');
+  document.getElementById('notif-drawer-overlay')?.classList.add('open');
+  _markAllRead();
+  _renderNotifList();
+  _loadNotifSettings();
+  _renderNotifPermStatus();
+}
+
+function closeNotifDrawer(){
+  document.getElementById('notif-drawer')?.classList.remove('open');
+  document.getElementById('notif-drawer-overlay')?.classList.remove('open');
+}
+
+function _markAllRead(){
+  _notifLog.forEach(n=>n.read=true);
+  _notifUnread=0;
+  _saveNotifLog();
+  _updateNotifBadge();
+}
+
+function _renderNotifList(){
+  const el=document.getElementById('notif-list');
+  if(!el)return;
+  if(!_notifLog.length){
+    el.innerHTML='<div style="padding:32px 16px;text-align:center;color:#9ca3af;font-size:13px">Noch keine Benachrichtigungen</div>';
+    return;
+  }
+  el.innerHTML=_notifLog.slice(0,30).map(n=>{
+    const ago=_timeAgo(n.time);
+    const icon=n.category==='draft'?'🎯':n.category==='trade'?'🔄':n.category==='waiver'?'📋':'🏆';
+    return `<div class="notif-item${n.read?'':' unread'}">
+      <div class="notif-item-title">${icon} ${n.title}</div>
+      <div class="notif-item-body">${n.body||''}</div>
+      <div class="notif-item-time">${ago}</div>
+    </div>`;
+  }).join('');
+}
+
+function _timeAgo(ts){
+  const d=Date.now()-ts;
+  if(d<60000)return'Gerade eben';
+  if(d<3600000)return Math.round(d/60000)+'min';
+  if(d<86400000)return Math.round(d/3600000)+'h';
+  return Math.round(d/86400000)+'d';
+}
+
+function _loadNotifSettings(){
+  const ns=_notifSettings;
+  const d=document.getElementById('ns-draft');const t=document.getElementById('ns-trade');const l=document.getElementById('ns-liga');
+  if(d)d.checked=ns.draft!==false;
+  if(t)t.checked=ns.trade!==false;
+  if(l)l.checked=ns.liga!==false;
+}
+
+function saveNotifSettings(){
+  _notifSettings={
+    draft:document.getElementById('ns-draft')?.checked!==false,
+    trade:document.getElementById('ns-trade')?.checked!==false,
+    liga:document.getElementById('ns-liga')?.checked!==false
+  };
+  try{localStorage.setItem('fwm_notif_settings',JSON.stringify(_notifSettings));}catch(e){}
+}
+
+function clearNotifLog(){
+  _notifLog=[];_notifUnread=0;
+  _saveNotifLog();_updateNotifBadge();_renderNotifList();
+}
+
+function _renderNotifPermStatus(){
+  const btn=document.getElementById('notif-perm-btn');
+  const status=document.getElementById('notif-perm-status');
+  if(!('Notification' in window)){
+    if(btn)btn.style.display='none';
+    if(status)status.textContent='Benachrichtigungen werden nicht unterstützt';
+    return;
+  }
+  const perm=Notification.permission;
+  if(perm==='granted'){
+    if(btn)btn.style.display='none';
+    if(status)status.textContent='✅ Benachrichtigungen aktiviert';
+  } else if(perm==='denied'){
+    if(btn)btn.style.display='none';
+    if(status)status.textContent='⛔ Benachrichtigungen blockiert. Bitte in Browser-Einstellungen erlauben.';
+  } else {
+    if(btn)btn.style.display='block';
+    if(status)status.textContent='';
   }
 }
 
-function sendNotif(title,body){
+async function requestNotifPermission(){
+  if(!('Notification' in window))return;
+  const result=await Notification.requestPermission();
+  _renderNotifPermStatus();
+  if(result==='granted')toast('🔔 Benachrichtigungen aktiviert!');
+}
+
+function requestNotificationPermission(){
+  if('Notification' in window && Notification.permission==='default'){
+    // defer to user-triggered flow, don't auto-prompt
+  }
+  _updateNotifBadge();
+}
+
+function sendNotif(title,body,category){
+  addToNotifLog(title,body,category);
   if(!('Notification' in window))return;
   if(Notification.permission!=='granted')return;
-  if(!document.hidden)return;
-  try{new Notification(title,{body,icon:'https://tzigerlig.github.io/fantasy-wm/icon-192.png'});}catch(e){}
+  if(category==='draft'&&_notifSettings.draft===false)return;
+  if(category==='trade'&&_notifSettings.trade===false)return;
+  if(category==='liga'&&_notifSettings.liga===false)return;
+  try{
+    if('serviceWorker' in navigator && navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIF',title,body,icon:'https://tzigerlig.github.io/fantasy-wm/icon-192.png'});
+    } else {
+      new Notification(title,{body,icon:'https://tzigerlig.github.io/fantasy-wm/icon-192.png'});
+    }
+  }catch(e){}
 }
 
 async function setMyName(){
@@ -2220,7 +2406,7 @@ function refreshCurrentView(){
     const incoming=(state.tradeOffers||[]).filter(o=>o.to===myName&&o.status==='pending');
     if(incoming.length>lastTradeCount&&lastTradeCount>=0){
       const newest=incoming[0];
-      sendNotif('🔄 Neues Trade-Angebot!',(newest?.from||'Jemand')+' möchte mit dir traden');
+      sendNotif('🔄 Neues Trade-Angebot!',(newest?.from||'Jemand')+' möchte mit dir traden','trade');
     }
     lastTradeCount=incoming.length;
   }catch(e){}
@@ -2423,7 +2609,7 @@ function updateDraftHeader(){
   if(subtitleEl)subtitleEl.textContent=current+' ist dran';
   if(isMyTurn&&pick!==lastNotifiedPick&&pick>0){
     lastNotifiedPick=pick;
-    sendNotif('🎯 Du bist dran!','Pick '+(pick+1)+' — 90 Sekunden!');
+    sendNotif('🎯 Du bist dran!','Pick '+(pick+1)+' — 90 Sekunden!','draft');
   }
 
   // ON THE CLOCK bar
@@ -3537,7 +3723,7 @@ async function admStartDraft(){
   state.squads={};ms.forEach(m=>state.squads[m]=[]);
   delete state.draftScheduledFor;
   await saveToDB();toast('Draft gestartet! ▶️');admRefresh();
-  sendNotif('🚀 Draft startet!','Alle sind bereit — viel Erfolg!');
+  sendNotif('🚀 Draft startet!','Alle sind bereit — viel Erfolg!','liga');
   closeAdmin();
   showView('draft',document.querySelectorAll('.nav-btn')[1]);
 }
@@ -3917,7 +4103,9 @@ async function claimWaiver(addId,dropId){
   const droppedPlayer=dropId?PLAYERS.find(p=>p.id===dropId):null;
   state.waiverLog.push({manager:myName,added:addId,dropped:dropId||null,date:new Date().toISOString()});
   await saveToDB();
-  toast(`✅ ${addedPlayer?.name||'Spieler'} geholt${droppedPlayer?' · '+droppedPlayer.name+' gedroppt':''}`);
+  const msg=`${addedPlayer?.name||'Spieler'} geholt${droppedPlayer?' (drop: '+droppedPlayer.name+')':''}`;
+  toast('✅ '+msg);
+  sendNotif('📋 Waiver: '+msg,'','waiver');
   renderMyTeam();
 }
 let dragFromId=null;
