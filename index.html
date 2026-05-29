@@ -1392,7 +1392,7 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 // ── SUPABASE DB ──────────────────────────────────────────────────
 function getDefaultState(){
   return{phase:'setup',managers:[],squads:{},draftOrder:[],draftPick:0,draftType:'snake',
-    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},captains:{},
+    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},captains:{},playerFlags:{},
     scoring:{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3,pens:5}};
 }
 
@@ -1581,6 +1581,7 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   if(!state.tradeOffers)state.tradeOffers=[];
   if(!state.lineups)state.lineups={};
   if(!state.captains)state.captains={};
+  if(!state.playerFlags)state.playerFlags={};
   if(!state.managers)state.managers=[];
   document.getElementById('liga-select').style.display='none';
   const app=document.getElementById('app');
@@ -1712,6 +1713,29 @@ function toast(msg){
   if(!t)return;
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+function getFlagBadge(playerId){
+  const flag=(state.playerFlags||{})[playerId];
+  if(!flag)return'';
+  return flag==='injured'
+    ?'<span style="margin-left:4px;font-size:9px;background:#fef2f2;color:#dc2626;border-radius:4px;padding:1px 4px;font-weight:700">🚑 Verletzt</span>'
+    :'<span style="margin-left:4px;font-size:9px;background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 4px;font-weight:700">🚫 Gesperrt</span>';
+}
+
+async function setPlayerFlag(playerId,flag){
+  if(!state.playerFlags)state.playerFlags={};
+  if(flag===null||state.playerFlags[playerId]===flag){
+    delete state.playerFlags[playerId];
+    toast('Flag entfernt');
+  } else {
+    state.playerFlags[playerId]=flag;
+    const p=PLAYERS.find(x=>x.id===playerId);
+    toast((flag==='injured'?'🚑 ':' 🚫 ')+(p?.name||'Spieler')+' als '+(flag==='injured'?'Verletzt':'Gesperrt')+' markiert');
+  }
+  await saveToDB();
+  renderDraftPool();
+  renderMyTeam();
 }
 
 function getColor(i){
@@ -2863,7 +2887,7 @@ function renderDraftPool(){
     const rowTitle=limitReached?'Positionslimit erreicht für '+POS_LABEL[p.pos]:'';
     return '<div class="dr-player-row clickable'+(isDrafted?' drafted':'')+(limitReached?' limit-reached':'')+(inQueue&&!isDrafted?' queued':'')+'" onclick="openPlayerModal('+p.id+')" title="'+rowTitle+'">'+
       '<span style="font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;display:inline-block;background:'+(p.pos==='ST'?'#dbeafe':p.pos==='LA'?'#fef9c3':p.pos==='MI'?'#fce7f3':'#dcfce7')+';color:'+(p.pos==='ST'?'#1e40af':p.pos==='LA'?'#854d0e':p.pos==='MI'?'#9d174d':'#166534')+'">'+POS_LABEL[p.pos]+'</span>'+
-      '<div><div class="drp-name">'+p.name+'</div><div class="drp-nation">'+p.nation+'</div></div>'+
+      '<div><div class="drp-name">'+p.name+getFlagBadge(p.id)+'</div><div class="drp-nation">'+p.nation+'</div></div>'+
       '<div class="drp-rating">'+p.rating+'</div>'+
       draftBtn+
       queueBtn+
@@ -3197,7 +3221,7 @@ function switchAdminTab(tab,btn){
   renderAdminContent();
 }
 
-function admRefresh(){renderAdminContent();}
+function admRefresh(){renderAdminContent();setTimeout(admRenderFlagList,50);}
 function renderAdminPanel(){renderAdminContent();}
 
 function renderAdminContent(){
@@ -3249,7 +3273,12 @@ function renderAdminContent(){
       +(lastMds.length?'<div class="admin-card"><h3>📅 Letzte Spieltage</h3>'+lastMds.map(md=>'<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #2d4a2d;color:#9de0b8">'+md.name+' · '+(md.entries||[]).length+' Einträge</div>').join('')+'</div>':'')
       +'<div class="admin-card"><h3>🎯 Phase setzen</h3><div style="display:flex;gap:8px;flex-wrap:wrap">'
       +['setup','draft','active'].map(ph=>'<button class="btn-admin-action" style="'+(phase===ph?'border-color:#f0c040;color:#f0c040':'')+'" onclick="admSetPhase(\''+ph+'\')">'+(ph==='setup'?'⚙️ Setup':ph==='draft'?'🎯 Draft':'✅ Aktiv')+'</button>').join('')
-      +'</div></div>';
+      +'</div></div>'
+      +'<div class="admin-card"><h3>🚑 Spieler-Status</h3>'
+      +'<p style="font-size:12px;color:#9de0b8;margin-bottom:10px">Verletzte oder gesperrte Spieler markieren — erscheint als Badge im Draft und Kader.</p>'
+      +'<input id="adm-flag-search" class="admin-input" placeholder="Spieler suchen..." oninput="admRenderFlagList()" style="margin-bottom:8px;width:100%">'
+      +'<div id="adm-flag-list" style="max-height:220px;overflow-y:auto"></div>'
+      +'</div>';
 
   } else if(currentAdminTab==='draft'){
     if(phase==='active'){
@@ -3504,6 +3533,29 @@ async function admClearManagers(){
 
 async function admSetPhase(phase){
   state.phase=phase;await saveToDB();updatePhaseBadge();toast('Phase: '+phase);admRefresh();
+}
+
+function admRenderFlagList(){
+  const el=document.getElementById('adm-flag-list');if(!el)return;
+  const search=(document.getElementById('adm-flag-search')?.value||'').toLowerCase();
+  const flags=state.playerFlags||{};
+  let players=PLAYERS.filter(p=>!search||p.name.toLowerCase().includes(search)||p.nation.toLowerCase().includes(search));
+  if(!search)players=players.filter(p=>flags[p.id]||true).slice(0,30);
+  else players=players.slice(0,20);
+  // Flagged players always at top
+  players.sort((a,b)=>(flags[b.id]?1:0)-(flags[a.id]?1:0));
+  el.innerHTML=players.map(p=>{
+    const flag=flags[p.id]||null;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
+      +'<span style="font-size:9px;padding:2px 5px;border-radius:4px;background:'+(p.pos==='ST'?'#1e3a8a':p.pos==='LA'?'#78350f':p.pos==='MI'?'#4a044e':'#14532d')+';color:#fff">'+POS_LABEL[p.pos]+'</span>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div>'
+      +'<div style="font-size:10px;color:rgba(255,255,255,0.4)">'+p.nation+'</div></div>'
+      +(flag?'<span style="font-size:10px;color:'+(flag==='injured'?'#f87171':'#fbbf24')+'">'+( flag==='injured'?'🚑 Verletzt':'🚫 Gesperrt')+'</span>':'')
+      +'<button onclick="setPlayerFlag('+p.id+',\'injured\')" style="background:'+(flag==='injured'?'#dc2626':'rgba(220,38,38,0.15)')+';border:1px solid #dc2626;color:'+(flag==='injured'?'#fff':'#f87171')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Verletzt">🚑</button>'
+      +'<button onclick="setPlayerFlag('+p.id+',\'suspended\')" style="background:'+(flag==='suspended'?'#d97706':'rgba(217,119,6,0.15)')+';border:1px solid #d97706;color:'+(flag==='suspended'?'#fff':'#fbbf24')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Gesperrt">🚫</button>'
+      +(flag?'<button onclick="setPlayerFlag('+p.id+',null)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer">✕</button>':'')
+      +'</div>';
+  }).join('');
 }
 
 async function admResetPin(name){
