@@ -2497,6 +2497,9 @@ async function toggleMockDraft(){
     mockDraftState.squadSize=size;
   }
   mockDraftState.phase='draft';
+  console.log('Mock start - myName:',myName);
+  console.log('Mock managers:',mockDraftState.managers);
+  console.log('Mock order[0]:',mockDraftState.draftOrder[0]);
   console.log('myName:', JSON.stringify(myName));
   console.log('draftOrder:', JSON.stringify(mockDraftState.draftOrder));
   console.log('managers:', JSON.stringify(mockDraftState.managers));
@@ -2589,7 +2592,7 @@ async function mockDraftPlayer(playerId){
   const order=mockDraftState.draftOrder||[];
   if(pick>=order.length)return;
   const currentManager=order[pick];
-  if(currentManager!==myName){toast('❌ '+currentManager+' ist dran, nicht du!');return;}
+  if(currentManager.trim().toLowerCase()!==myName.trim().toLowerCase()){toast('❌ '+currentManager+' ist dran!');return;}
   stopPickTimer();
   const draftedIds=new Set();
   Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
@@ -2746,7 +2749,7 @@ function renderDraftPool(){
   if(!el)return;
   const currentPick=ds.draftPick||0;
   const currentManager=(ds.draftOrder||[])[currentPick];
-  const isMyTurn=currentManager===myName;
+  const isMyTurn=currentManager?.trim().toLowerCase()===myName?.trim().toLowerCase();
   // Position counts for my squad in active state
   const mySquad=ds.squads[myName]||[];
   const counts={ST:0,LA:0,MI:0,AN:0};
