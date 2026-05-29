@@ -2441,13 +2441,22 @@ function updateDraftHeader(){
     }
   }
 
-  // Next up bar: show next 5 picks
+  // Next up bar: show next 5 picks with round-turn separators
   if(nextBar){
-    const upcoming=[];
-    for(let i=pick+1;i<Math.min(pick+6,total);i++)upcoming.push(ds.draftOrder[i]);
+    const mgrCount=(ds.managers||[]).length||1;
+    const entries=[];
+    for(let i=pick+1;i<total&&entries.filter(x=>!x.sep).length<5;i++){
+      if(i%mgrCount===0)entries.push({sep:true});
+      entries.push({name:ds.draftOrder[i]});
+    }
     const autoDraftOn=window._autoDraft||false;
+    let firstPick=true;
     nextBar.innerHTML=`<span class="dr-next-lbl">Als nächstes:</span>`+
-      upcoming.map((m,i)=>`<div class="dr-next-chip${m===myName?' me':''}">${i===0?'→ ':''}${m}</div>`).join('')+
+      entries.map(x=>{
+        if(x.sep)return`<span style="font-size:10px;color:rgba(255,255,255,0.25);margin:0 2px">↩</span>`;
+        const prefix=firstPick?(firstPick=false,'→ '):'';
+        return`<div class="dr-next-chip${x.name===myName?' me':''}">${prefix}${x.name}</div>`;
+      }).join('')+
       `<button class="dr-autodraft-btn${autoDraftOn&&!mockDraftActive?' on':''}" onclick="toggleAutoDraft(this)" ${mockDraftActive?'disabled style="opacity:0.4"':''}>⚡ Auto-Draft ${autoDraftOn&&!mockDraftActive?'AN':'AUS'}</button>`;
   }
 }
