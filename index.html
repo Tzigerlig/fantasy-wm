@@ -1482,6 +1482,16 @@ async function loadLegacyState(){
   }catch(e){return null;}
 }
 
+async function loadPlatformConfig(){
+  try{
+    const{data}=await db.from('liga_state').select('data').eq('id','platform_config').single();
+    if(data?.data?.fdoKey){
+      fdoKey=data.data.fdoKey;
+      localStorage.setItem('fwm_fdo_key',fdoKey);
+    }
+  }catch(e){}
+}
+
 async function loadMyLigen(){
   const cached=localStorage.getItem('fwm_ligen');
   if(cached){try{myLigen=JSON.parse(cached);}catch(e){}}
@@ -3288,13 +3298,13 @@ function renderAdminContent(){
         </div>
         <button class="btn-admin-action" onclick="admSaveScoring()">💾 Speichern</button>
       </div>
-      <div class="admin-card"><h3>⚽ football-data.org API Key</h3>
-        <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Für Live-Scores im Spielplan-Tab. Kostenloser Account bei <strong>football-data.org</strong> nötig.</p>
+      <div class="admin-card"><h3>⚽ football-data.org API Key <span style="font-size:11px;background:rgba(74,222,128,0.15);color:#4ade80;border-radius:4px;padding:2px 6px;font-weight:500;letter-spacing:0.5px">GLOBAL</span></h3>
+        <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Einmal hier speichern — gilt für <strong>alle Ligas und alle Nutzer</strong> der Platform. Kostenloser Account bei football-data.org nötig.</p>
         <div style="display:flex;gap:8px;margin-bottom:6px">
           <input type="password" id="adm-fdo-key" class="admin-input" placeholder="Dein football-data.org Token..." style="flex:1;margin:0" value="${fdoKey||''}">
           <button class="btn-admin-action" onclick="admSaveFdoKey()">💾 Speichern</button>
         </div>
-        <div id="adm-fdo-key-status" style="font-size:12px;color:#9de0b8">${fdoKey?'<span style="color:#4ade80">✓ Key aktiv</span>':'Kein Key — <a href="https://www.football-data.org/client/register" target="_blank" style="color:#f0c040">Hier kostenlos registrieren →</a>'}</div>
+        <div id="adm-fdo-key-status" style="font-size:12px;color:#9de0b8">${fdoKey?'<span style="color:#4ade80">✓ Global aktiv — alle Nutzer können Live-Scores sehen</span>':'Kein Key — <a href="https://www.football-data.org/client/register" target="_blank" style="color:#f0c040">Hier kostenlos registrieren →</a>'}</div>
       </div>
       <div class="admin-card"><h3>🔑 API-Football Key</h3>
         <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Für Live-Spielerdaten nach WM-Spielen.</p>
@@ -3478,14 +3488,21 @@ function admSaveApiKey(){
 }
 function adminSaveApiKey(){admSaveApiKey();}
 
-function admSaveFdoKey(){
+async function admSaveFdoKey(){
   const val=(document.getElementById('adm-fdo-key')||{}).value||'';
   if(!val.trim()){toast('Bitte Key eingeben!');return;}
   fdoKey=val.trim();
   localStorage.setItem('fwm_fdo_key',fdoKey);
   const s=document.getElementById('adm-fdo-key-status');
-  if(s){s.innerHTML='<span style="color:#4ade80">✓ Key aktiv</span>';}
-  toast('football-data.org Key gespeichert! ⚽');
+  if(s)s.innerHTML='<span style="color:#f0c040">⏳ Speichern...</span>';
+  try{
+    await db.from('liga_state').upsert({id:'platform_config',data:{fdoKey},updated_at:new Date().toISOString()},{onConflict:'id'});
+    if(s)s.innerHTML='<span style="color:#4ade80">✓ Global gespeichert — gilt für alle Nutzer</span>';
+    toast('⚽ Key global gespeichert!');
+  }catch(e){
+    if(s)s.innerHTML='<span style="color:#f87171">❌ Fehler: '+(e.message||e)+'</span>';
+    toast('Fehler beim Speichern!');
+  }
 }
 
 async function adminCreateTestDraft(){
@@ -4862,6 +4879,7 @@ async function init(){
     localStorage.removeItem('fwm_device_id');localStorage.removeItem('fwm_last_liga');
   }
   if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  loadPlatformConfig(); // fire-and-forget: lädt fdoKey global aus Supabase
 
   // Admin URL shortcut — legacy compat
   if(urlParams.get('admin')===ADMIN_PW){
