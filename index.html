@@ -1648,6 +1648,7 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   if(!state.captains)state.captains={};
   if(!state.playerFlags)state.playerFlags={};
   if(!state.managers)state.managers=[];
+  if(!state.squadSize)state.squadSize=14;
   applyCustomPlayers(); // use custom player list if set by admin
   document.getElementById('liga-select').style.display='none';
   const app=document.getElementById('app');
@@ -2150,6 +2151,8 @@ async function registerPlayer(){
   localStorage.setItem('fwm_pin',pin);
   completeLogin();
   toast('Willkommen, '+name+'! 🎉');
+  const isFirstLogin=!localStorage.getItem('fwm_onboarded');
+  if(isFirstLogin)setTimeout(showOnboarding,800);
 }
 
 async function loginPlayer(){
@@ -2225,7 +2228,7 @@ function renderSetup(){
   }
 
   // ── SHARE LINK + QR ──────────────────────────────
-  const shareUrl='https://tzigerlig.github.io/fantasy-wm/'+(currentLigaCode?'?liga='+currentLigaCode:'');
+  const shareUrl=(window.location.origin+'/fantasy-wm/')+(currentLigaCode?'?liga='+currentLigaCode:'');
   const sl=document.getElementById('share-link');
   if(sl)sl.value=shareUrl;
   const qr=document.getElementById('qr-code');
@@ -2727,14 +2730,12 @@ function updateTimerUI(){
   const timerWrap=document.getElementById('dr-timer-wrap');
   if(numEl)numEl.textContent=drPickTimeLeft;
   if(circleEl){
-    const circumference=2*Math.PI*18;
-    const pct=drPickTimeLeft/DR_PICK_TIME;
-    const offset=circumference-(pct*circumference);
-    circleEl.setAttribute('stroke-dasharray',circumference.toString());
+    const circ=2*Math.PI*18;
+    const offset=circ*(1-drPickTimeLeft/DR_PICK_TIME);
+    circleEl.setAttribute('stroke-dasharray',circ.toString());
     circleEl.setAttribute('stroke-dashoffset',offset.toString());
     const col=drPickTimeLeft>30?'#4ade80':drPickTimeLeft>10?'#f0c040':'#f87171';
     circleEl.setAttribute('stroke',col);
-    if(numEl)numEl.style.color=drPickTimeLeft<=10?'#f87171':drPickTimeLeft<=30?'#f0c040':'#fff';
   }
   if(timerWrap){
     if(drPickTimeLeft<=15)timerWrap.classList.add('dr-urgent');
@@ -2838,7 +2839,7 @@ async function runMockAutoDraft(){
   const order=mockDraftState.draftOrder||[];
   if(pick>=order.length)return;
   const current=order[pick];
-  if(current&&myName&&current.trim().toLowerCase()===myName.trim().toLowerCase()){startPickTimer();return;}
+  if(current&&myName&&current.trim().toLowerCase()===myName.trim().toLowerCase()){renderDraftView();startPickTimer();return;}
 
   setTimeout(()=>{
     if(!mockDraftActive||!mockDraftState)return;
@@ -3298,7 +3299,17 @@ const NATION_FLAG={
   'Südkorea':'kr','Tunesien':'tn','Türkei':'tr','Ukraine':'ua','Uruguay':'uy',
   'USA':'us','Wales':'gb-wls','Ägypten':'eg','Algerien':'dz','Ungarn':'hu',
   'Tschechien':'cz','Schweden':'se','Norwegen':'no','Schottland':'gb-sct',
-  'Nordirland':'gb-nir','Irland':'ie','Island':'is','Albanien':'al','Georgien':'ge'
+  'Nordirland':'gb-nir','Irland':'ie','Island':'is','Albanien':'al','Georgien':'ge',
+  'Elfenbeinküste':'ci','Kongo DR':'cd','Südafrika':'za','Angola':'ao',
+  'Kenia':'ke','Kap Verde':'cv','Ägypten':'eg','Tunesien':'tn','Ghana':'gh',
+  'Kamerun':'cm','Senegal':'sn','Nigeria':'ng','Marokko':'ma',
+  'Curaçao':'cw','Paraguay':'py','Bolivien':'bo','Venezuela':'ve','Chile':'cl',
+  'Peru':'pe','Honduras':'hn','Jamaika':'jm','Trinidad und Tobago':'tt',
+  'Usbekistan':'uz','Jordanien':'jo','Irak':'iq','Katar':'qa','Bahrain':'bh',
+  'VAE':'ae','Oman':'om','Palästina':'ps','Syrien':'sy','Nordkorea':'kp',
+  'Bosnien-Herzegowina':'ba','Slowakei':'sk','Rumänien':'ro','Griechenland':'gr',
+  'Nordmazedonien':'mk','Finnland':'fi','Bulgarien':'bg','Montenegro':'me',
+  'Kosovo':'xk','Neuseeland':'nz','Fidschi':'fj','Papua-Neuguinea':'pg'
 };
 
 function getPlayerFlagUrl(nation){
@@ -3341,111 +3352,484 @@ async function loadPlayerPhoto(playerId,imgEl){
 let PLAYERS=[
   // ── TORHÜTER ─────────────────────────────────────────────────────
   {id:1,name:'Alisson Becker',nation:'Brasilien',pos:'ST',rating:91},
-  {id:2,name:'Ederson',nation:'Brasilien',pos:'ST',rating:90},
-  {id:3,name:'Thibaut Courtois',nation:'Belgien',pos:'ST',rating:90},
-  {id:4,name:'Manuel Neuer',nation:'Deutschland',pos:'ST',rating:87},
-  {id:5,name:'Marc-André ter Stegen',nation:'Deutschland',pos:'ST',rating:87},
-  {id:6,name:'Oliver Baumann',nation:'Deutschland',pos:'ST',rating:83},
-  {id:7,name:'Mike Maignan',nation:'Frankreich',pos:'ST',rating:88},
-  {id:8,name:'Yann Sommer',nation:'Schweiz',pos:'ST',rating:87},
-  {id:9,name:'Jordan Pickford',nation:'England',pos:'ST',rating:86},
-  {id:10,name:'Diogo Costa',nation:'Portugal',pos:'ST',rating:85},
-  {id:11,name:'Unai Simón',nation:'Spanien',pos:'ST',rating:86},
-  {id:12,name:'André Onana',nation:'Kamerun',pos:'ST',rating:85},
-  {id:13,name:'Bono',nation:'Marokko',pos:'ST',rating:84},
-  {id:14,name:'Emiliano Martínez',nation:'Argentinien',pos:'ST',rating:89},
+  {id:2,name:'Ederson',nation:'Brasilien',pos:'ST',rating:89},
+  {id:3,name:'Weverton',nation:'Brasilien',pos:'ST',rating:82},
+  {id:4,name:'Thibaut Courtois',nation:'Belgien',pos:'ST',rating:90},
+  {id:5,name:'Manuel Neuer',nation:'Deutschland',pos:'ST',rating:87},
+  {id:6,name:'Marc-André ter Stegen',nation:'Deutschland',pos:'ST',rating:87},
+  {id:7,name:'Oliver Baumann',nation:'Deutschland',pos:'ST',rating:83},
+  {id:8,name:'Mike Maignan',nation:'Frankreich',pos:'ST',rating:88},
+  {id:9,name:'Alphonse Areola',nation:'Frankreich',pos:'ST',rating:83},
+  {id:10,name:'Yann Sommer',nation:'Schweiz',pos:'ST',rating:87},
+  {id:11,name:'Gregor Kobel',nation:'Schweiz',pos:'ST',rating:85},
+  {id:12,name:'Jordan Pickford',nation:'England',pos:'ST',rating:86},
+  {id:13,name:'Dean Henderson',nation:'England',pos:'ST',rating:82},
+  {id:14,name:'Diogo Costa',nation:'Portugal',pos:'ST',rating:85},
+  {id:15,name:'Rui Patrício',nation:'Portugal',pos:'ST',rating:82},
+  {id:16,name:'Unai Simón',nation:'Spanien',pos:'ST',rating:86},
+  {id:17,name:'David Raya',nation:'Spanien',pos:'ST',rating:85},
+  {id:18,name:'André Onana',nation:'Kamerun',pos:'ST',rating:85},
+  {id:19,name:'Bono',nation:'Marokko',pos:'ST',rating:84},
+  {id:20,name:'Yassine Bounou',nation:'Marokko',pos:'ST',rating:83},
+  {id:21,name:'Emiliano Martínez',nation:'Argentinien',pos:'ST',rating:89},
+  {id:22,name:'Gerónimo Rulli',nation:'Argentinien',pos:'ST',rating:82},
+  {id:23,name:'Gianluigi Donnarumma',nation:'Italien',pos:'ST',rating:89},
+  {id:24,name:'Samir Handanović',nation:'Slowenien',pos:'ST',rating:81},
+  {id:25,name:'Andriy Lunin',nation:'Ukraine',pos:'ST',rating:83},
+  {id:26,name:'Wojciech Szczęsny',nation:'Polen',pos:'ST',rating:85},
+  {id:27,name:'Robert Sánchez',nation:'Spanien',pos:'ST',rating:83},
+  {id:28,name:'Matz Sels',nation:'Belgien',pos:'ST',rating:83},
+  {id:29,name:'Odysseas Vlachodimos',nation:'Griechenland',pos:'ST',rating:82},
+  {id:30,name:'Guglielmo Vicario',nation:'Italien',pos:'ST',rating:84},
+  {id:31,name:'Memo Ochoa',nation:'Mexiko',pos:'ST',rating:82},
+  {id:32,name:'Luis Malagón',nation:'Mexiko',pos:'ST',rating:80},
+  {id:33,name:'Badra Ali Sangaré',nation:'Elfenbeinküste',pos:'ST',rating:77},
+  {id:34,name:'Sayf Al-Nasser',nation:'Katar',pos:'ST',rating:77},
+  {id:35,name:'Edouard Mendy',nation:'Senegal',pos:'ST',rating:83},
+  {id:36,name:'Sadio Diallo',nation:'Senegal',pos:'ST',rating:76},
+  {id:37,name:'Uzoho Francis',nation:'Nigeria',pos:'ST',rating:78},
+  {id:38,name:'Lawrence Ati-Zigi',nation:'Ghana',pos:'ST',rating:80},
+  {id:39,name:'Ibrahim Šehić',nation:'Bosnien-Herzegowina',pos:'ST',rating:79},
+  {id:40,name:'Giorgi Mamardashvili',nation:'Georgien',pos:'ST',rating:84},
+  {id:41,name:'Dominik Livaković',nation:'Kroatien',pos:'ST',rating:85},
+  {id:42,name:'Péter Gulácsi',nation:'Ungarn',pos:'ST',rating:83},
+  {id:43,name:'Sam Johnstone',nation:'England',pos:'ST',rating:81},
   // ── ABWEHR ───────────────────────────────────────────────────────
-  {id:15,name:'Virgil van Dijk',nation:'Niederlande',pos:'LA',rating:90},
-  {id:16,name:'Rúben Dias',nation:'Portugal',pos:'LA',rating:90},
-  {id:17,name:'Marquinhos',nation:'Brasilien',pos:'LA',rating:89},
-  {id:18,name:'William Saliba',nation:'Frankreich',pos:'LA',rating:88},
-  {id:19,name:'Dayot Upamecano',nation:'Frankreich',pos:'LA',rating:86},
-  {id:20,name:'Antonio Rüdiger',nation:'Deutschland',pos:'LA',rating:88},
-  {id:21,name:'Jonathan Tah',nation:'Deutschland',pos:'LA',rating:84},
-  {id:22,name:'Nico Schlotterbeck',nation:'Deutschland',pos:'LA',rating:85},
-  {id:23,name:'David Raum',nation:'Deutschland',pos:'LA',rating:83},
-  {id:24,name:'Maximilian Mittelstädt',nation:'Deutschland',pos:'LA',rating:82},
-  {id:25,name:'João Cancelo',nation:'Portugal',pos:'LA',rating:87},
-  {id:26,name:'Nuno Mendes',nation:'Portugal',pos:'LA',rating:86},
-  {id:27,name:'Trent Alexander-Arnold',nation:'England',pos:'LA',rating:88},
-  {id:28,name:'Kyle Walker',nation:'England',pos:'LA',rating:85},
-  {id:29,name:'Jules Koundé',nation:'Frankreich',pos:'LA',rating:87},
-  {id:30,name:'Theo Hernández',nation:'Frankreich',pos:'LA',rating:87},
-  {id:31,name:'Achraf Hakimi',nation:'Marokko',pos:'LA',rating:88},
-  {id:32,name:'Nayef Aguerd',nation:'Marokko',pos:'LA',rating:83},
-  {id:33,name:'Eder Militao',nation:'Brasilien',pos:'LA',rating:87},
-  {id:34,name:'Danilo',nation:'Brasilien',pos:'LA',rating:84},
-  {id:35,name:'Lisandro Martínez',nation:'Argentinien',pos:'LA',rating:86},
-  {id:36,name:'Nicolás Otamendi',nation:'Argentinien',pos:'LA',rating:84},
-  {id:37,name:'Ronald Araújo',nation:'Uruguay',pos:'LA',rating:87},
-  {id:38,name:'Stefan de Vrij',nation:'Niederlande',pos:'LA',rating:84},
-  {id:39,name:'Nathan Aké',nation:'Niederlande',pos:'LA',rating:85},
-  {id:40,name:'Dani Carvajal',nation:'Spanien',pos:'LA',rating:86},
-  {id:41,name:'Aymeric Laporte',nation:'Spanien',pos:'LA',rating:87},
-  {id:42,name:'Reece James',nation:'England',pos:'LA',rating:86},
+  {id:44,name:'Virgil van Dijk',nation:'Niederlande',pos:'LA',rating:90},
+  {id:45,name:'Denzel Dumfries',nation:'Niederlande',pos:'LA',rating:84},
+  {id:46,name:'Jurriën Timber',nation:'Niederlande',pos:'LA',rating:85},
+  {id:47,name:'Nathan Aké',nation:'Niederlande',pos:'LA',rating:85},
+  {id:48,name:'Stefan de Vrij',nation:'Niederlande',pos:'LA',rating:84},
+  {id:49,name:'Rúben Dias',nation:'Portugal',pos:'LA',rating:90},
+  {id:50,name:'João Cancelo',nation:'Portugal',pos:'LA',rating:87},
+  {id:51,name:'Nuno Mendes',nation:'Portugal',pos:'LA',rating:86},
+  {id:52,name:'Pepe',nation:'Portugal',pos:'LA',rating:81},
+  {id:53,name:'Marquinhos',nation:'Brasilien',pos:'LA',rating:89},
+  {id:54,name:'Eder Militao',nation:'Brasilien',pos:'LA',rating:87},
+  {id:55,name:'Danilo',nation:'Brasilien',pos:'LA',rating:83},
+  {id:56,name:'Guilherme Arana',nation:'Brasilien',pos:'LA',rating:83},
+  {id:57,name:'William Saliba',nation:'Frankreich',pos:'LA',rating:88},
+  {id:58,name:'Dayot Upamecano',nation:'Frankreich',pos:'LA',rating:86},
+  {id:59,name:'Jules Koundé',nation:'Frankreich',pos:'LA',rating:87},
+  {id:60,name:'Theo Hernández',nation:'Frankreich',pos:'LA',rating:87},
+  {id:61,name:'Antonio Rüdiger',nation:'Deutschland',pos:'LA',rating:88},
+  {id:62,name:'Jonathan Tah',nation:'Deutschland',pos:'LA',rating:84},
+  {id:63,name:'Nico Schlotterbeck',nation:'Deutschland',pos:'LA',rating:85},
+  {id:64,name:'David Raum',nation:'Deutschland',pos:'LA',rating:83},
+  {id:65,name:'Maximilian Mittelstädt',nation:'Deutschland',pos:'LA',rating:82},
+  {id:66,name:'Benjamin Pavard',nation:'Frankreich',pos:'LA',rating:84},
+  {id:67,name:'Trent Alexander-Arnold',nation:'England',pos:'LA',rating:88},
+  {id:68,name:'Kyle Walker',nation:'England',pos:'LA',rating:84},
+  {id:69,name:'John Stones',nation:'England',pos:'LA',rating:85},
+  {id:70,name:'Marc Guehi',nation:'England',pos:'LA',rating:84},
+  {id:71,name:'Reece James',nation:'England',pos:'LA',rating:85},
+  {id:72,name:'Achraf Hakimi',nation:'Marokko',pos:'LA',rating:88},
+  {id:73,name:'Nayef Aguerd',nation:'Marokko',pos:'LA',rating:83},
+  {id:74,name:'Romain Saïss',nation:'Marokko',pos:'LA',rating:81},
+  {id:75,name:'Lisandro Martínez',nation:'Argentinien',pos:'LA',rating:86},
+  {id:76,name:'Nicolás Otamendi',nation:'Argentinien',pos:'LA',rating:83},
+  {id:77,name:'Nahuel Molina',nation:'Argentinien',pos:'LA',rating:84},
+  {id:78,name:'Marcos Acuña',nation:'Argentinien',pos:'LA',rating:82},
+  {id:79,name:'Ronald Araújo',nation:'Uruguay',pos:'LA',rating:87},
+  {id:80,name:'José María Giménez',nation:'Uruguay',pos:'LA',rating:83},
+  {id:81,name:'Dani Carvajal',nation:'Spanien',pos:'LA',rating:86},
+  {id:82,name:'Aymeric Laporte',nation:'Spanien',pos:'LA',rating:86},
+  {id:83,name:'Alejandro Balde',nation:'Spanien',pos:'LA',rating:84},
+  {id:84,name:'Pau Cubarsí',nation:'Spanien',pos:'LA',rating:85},
+  {id:85,name:'Nacho Fernández',nation:'Spanien',pos:'LA',rating:82},
+  {id:86,name:'Alessandro Bastoni',nation:'Italien',pos:'LA',rating:87},
+  {id:87,name:'Giovanni Di Lorenzo',nation:'Italien',pos:'LA',rating:84},
+  {id:88,name:'Giorgio Scalvini',nation:'Italien',pos:'LA',rating:83},
+  {id:89,name:'Federico Dimarco',nation:'Italien',pos:'LA',rating:85},
+  {id:90,name:'Jan Vertonghen',nation:'Belgien',pos:'LA',rating:82},
+  {id:91,name:'Thomas Meunier',nation:'Belgien',pos:'LA',rating:81},
+  {id:92,name:'Wout Faes',nation:'Belgien',pos:'LA',rating:80},
+  {id:93,name:'Sven Botman',nation:'Niederlande',pos:'LA',rating:83},
+  {id:94,name:'Granit Xhaka',nation:'Schweiz',pos:'LA',rating:79},
+  {id:95,name:'Silvan Widmer',nation:'Schweiz',pos:'LA',rating:80},
+  {id:96,name:'Manuel Akanji',nation:'Schweiz',pos:'LA',rating:85},
+  {id:97,name:'Ricardo Rodríguez',nation:'Schweiz',pos:'LA',rating:80},
+  {id:98,name:'Fabian Schär',nation:'Schweiz',pos:'LA',rating:82},
+  {id:99,name:'Borna Sosa',nation:'Kroatien',pos:'LA',rating:81},
+  {id:100,name:'Josip Stanišić',nation:'Kroatien',pos:'LA',rating:80},
+  {id:101,name:'Dejan Lovren',nation:'Kroatien',pos:'LA',rating:80},
+  {id:102,name:'Josko Gvardiol',nation:'Kroatien',pos:'LA',rating:87},
+  {id:103,name:'Willi Orbán',nation:'Ungarn',pos:'LA',rating:80},
+  {id:104,name:'Ádám Lang',nation:'Ungarn',pos:'LA',rating:78},
+  {id:105,name:'Pedro Porro',nation:'Spanien',pos:'LA',rating:83},
+  {id:106,name:'Mats Hummels',nation:'Deutschland',pos:'LA',rating:82},
+  {id:107,name:'Nasser Mazraoui',nation:'Marokko',pos:'LA',rating:83},
+  {id:108,name:'Salis Abdul Samed',nation:'Ghana',pos:'LA',rating:77},
+  {id:109,name:'Alexander Djiku',nation:'Ghana',pos:'LA',rating:78},
+  {id:110,name:'Serge Aurier',nation:'Elfenbeinküste',pos:'LA',rating:80},
+  {id:111,name:'Ghislain Konan',nation:'Elfenbeinküste',pos:'LA',rating:77},
+  {id:112,name:'Youcef Atal',nation:'Algerien',pos:'LA',rating:80},
+  {id:113,name:'Ramy Bensebaini',nation:'Algerien',pos:'LA',rating:82},
+  {id:114,name:'Almamy Touré',nation:'Algerien',pos:'LA',rating:78},
+  {id:115,name:'Kalidou Koulibaly',nation:'Senegal',pos:'LA',rating:84},
+  {id:116,name:'Abdou Diallo',nation:'Senegal',pos:'LA',rating:81},
+  {id:117,name:'Youssouf Sabaly',nation:'Senegal',pos:'LA',rating:80},
+  {id:118,name:'William Troost-Ekong',nation:'Nigeria',pos:'LA',rating:80},
+  {id:119,name:'Calvin Bassey',nation:'Nigeria',pos:'LA',rating:80},
+  {id:120,name:'Semi Ajayi',nation:'Nigeria',pos:'LA',rating:79},
+  {id:121,name:'Fahad Al-Muwallad',nation:'Saudi-Arabien',pos:'LA',rating:78},
+  {id:122,name:'Ali Al-Bulayhi',nation:'Saudi-Arabien',pos:'LA',rating:79},
+  {id:123,name:'Yassir Al-Shahrani',nation:'Saudi-Arabien',pos:'LA',rating:78},
+  {id:124,name:'Hiroki Sakai',nation:'Japan',pos:'LA',rating:80},
+  {id:125,name:'Ko Itakura',nation:'Japan',pos:'LA',rating:81},
+  {id:126,name:'Takehiro Tomiyasu',nation:'Japan',pos:'LA',rating:82},
+  {id:127,name:'Yuto Nagatomo',nation:'Japan',pos:'LA',rating:78},
+  {id:128,name:'Kim Min-jae',nation:'Südkorea',pos:'LA',rating:87},
+  {id:129,name:'Kim Jin-su',nation:'Südkorea',pos:'LA',rating:79},
+  {id:130,name:'Lee Ki-je',nation:'Südkorea',pos:'LA',rating:78},
+  {id:131,name:'Aleksander Dragović',nation:'Österreich',pos:'LA',rating:79},
+  {id:132,name:'Philipp Lienhart',nation:'Österreich',pos:'LA',rating:80},
+  {id:133,name:'Stefan Posch',nation:'Österreich',pos:'LA',rating:81},
+  {id:134,name:'Sasa Lukic',nation:'Serbien',pos:'LA',rating:79},
+  {id:135,name:'Nikola Milenkovic',nation:'Serbien',pos:'LA',rating:82},
+  {id:136,name:'Filip Mladenović',nation:'Serbien',pos:'LA',rating:79},
+  {id:137,name:'Felix Torres',nation:'Ecuador',pos:'LA',rating:81},
+  {id:138,name:'Piero Hincapié',nation:'Ecuador',pos:'LA',rating:83},
+  {id:139,name:'Angelo Preciado',nation:'Ecuador',pos:'LA',rating:79},
+  {id:140,name:'Gonzalo Plata',nation:'Ecuador',pos:'LA',rating:79},
+  {id:141,name:'Édson Álvarez',nation:'Mexiko',pos:'LA',rating:83},
+  {id:142,name:'Héctor Moreno',nation:'Mexiko',pos:'LA',rating:79},
+  {id:143,name:'Jorge Sánchez',nation:'Mexiko',pos:'LA',rating:78},
+  {id:144,name:'Mathías Olivera',nation:'Uruguay',pos:'LA',rating:82},
+  {id:145,name:'Santiago Bueno',nation:'Uruguay',pos:'LA',rating:80},
+  {id:146,name:'Abdoulaye Touré',nation:'Elfenbeinküste',pos:'LA',rating:77},
+  {id:147,name:'Przemysław Frankowski',nation:'Polen',pos:'LA',rating:79},
+  {id:148,name:'Jan Bednarek',nation:'Polen',pos:'LA',rating:80},
+  {id:149,name:'Bartosz Bereszyński',nation:'Polen',pos:'LA',rating:78},
+  {id:150,name:'Giorgi Loria',nation:'Georgien',pos:'LA',rating:77},
+  {id:151,name:'Guram Kashia',nation:'Georgien',pos:'LA',rating:78},
+  {id:152,name:'Otar Kakabadze',nation:'Georgien',pos:'LA',rating:79},
+  {id:153,name:'Sead Kolašinac',nation:'Bosnien-Herzegowina',pos:'LA',rating:80},
+  {id:154,name:'Anel Ahmedhodžić',nation:'Bosnien-Herzegowina',pos:'LA',rating:80},
+  {id:155,name:'Manuel Fenty',nation:'Curaçao',pos:'LA',rating:72},
   // ── MITTELFELD ───────────────────────────────────────────────────
-  {id:43,name:'Kevin De Bruyne',nation:'Belgien',pos:'MI',rating:91},
-  {id:44,name:'Luka Modrić',nation:'Kroatien',pos:'MI',rating:87},
-  {id:45,name:'Joshua Kimmich',nation:'Deutschland',pos:'MI',rating:88},
-  {id:46,name:'Florian Wirtz',nation:'Deutschland',pos:'MI',rating:89},
-  {id:47,name:'Jamal Musiala',nation:'Deutschland',pos:'MI',rating:89},
-  {id:48,name:'Kai Havertz',nation:'Deutschland',pos:'MI',rating:85},
-  {id:49,name:'Leroy Sané',nation:'Deutschland',pos:'MI',rating:86},
-  {id:50,name:'Leon Goretzka',nation:'Deutschland',pos:'MI',rating:84},
-  {id:51,name:'İlkay Gündogan',nation:'Deutschland',pos:'MI',rating:85},
-  {id:52,name:'Pedri',nation:'Spanien',pos:'MI',rating:88},
-  {id:53,name:'Gavi',nation:'Spanien',pos:'MI',rating:87},
-  {id:54,name:'Rodri',nation:'Spanien',pos:'MI',rating:91},
-  {id:55,name:'Lamine Yamal',nation:'Spanien',pos:'MI',rating:88},
-  {id:56,name:'Jude Bellingham',nation:'England',pos:'MI',rating:91},
-  {id:57,name:'Declan Rice',nation:'England',pos:'MI',rating:87},
-  {id:58,name:'Bernardo Silva',nation:'Portugal',pos:'MI',rating:88},
-  {id:59,name:'Bruno Fernandes',nation:'Portugal',pos:'MI',rating:87},
-  {id:60,name:'Vitinha',nation:'Portugal',pos:'MI',rating:85},
-  {id:61,name:'Antoine Griezmann',nation:'Frankreich',pos:'MI',rating:87},
-  {id:62,name:"N'Golo Kanté",nation:'Frankreich',pos:'MI',rating:85},
-  {id:63,name:'Aurélien Tchouaméni',nation:'Frankreich',pos:'MI',rating:86},
-  {id:64,name:'Federico Valverde',nation:'Uruguay',pos:'MI',rating:88},
-  {id:65,name:'Enzo Fernández',nation:'Argentinien',pos:'MI',rating:86},
-  {id:66,name:'Alexis Mac Allister',nation:'Argentinien',pos:'MI',rating:86},
-  {id:67,name:'Frenkie de Jong',nation:'Niederlande',pos:'MI',rating:87},
-  {id:68,name:'Tijjani Reijnders',nation:'Niederlande',pos:'MI',rating:84},
-  {id:69,name:'Hakim Ziyech',nation:'Marokko',pos:'MI',rating:83},
-  {id:70,name:'Sofyan Amrabat',nation:'Marokko',pos:'MI',rating:83},
-  {id:71,name:'Lucas Paquetá',nation:'Brasilien',pos:'MI',rating:86},
-  {id:72,name:'Casemiro',nation:'Brasilien',pos:'MI',rating:84},
-  {id:73,name:'Granit Xhaka',nation:'Schweiz',pos:'MI',rating:83},
+  {id:156,name:'Kevin De Bruyne',nation:'Belgien',pos:'MI',rating:91},
+  {id:157,name:'Alexis Saelemaekers',nation:'Belgien',pos:'MI',rating:82},
+  {id:158,name:'Youri Tielemans',nation:'Belgien',pos:'MI',rating:83},
+  {id:159,name:'Amadou Onana',nation:'Belgien',pos:'MI',rating:83},
+  {id:160,name:'Luka Modrić',nation:'Kroatien',pos:'MI',rating:87},
+  {id:161,name:'Mateo Kovačić',nation:'Kroatien',pos:'MI',rating:85},
+  {id:162,name:'Marcelo Brozović',nation:'Kroatien',pos:'MI',rating:84},
+  {id:163,name:'Ivan Perišić',nation:'Kroatien',pos:'MI',rating:83},
+  {id:164,name:'Joshua Kimmich',nation:'Deutschland',pos:'MI',rating:88},
+  {id:165,name:'Florian Wirtz',nation:'Deutschland',pos:'MI',rating:89},
+  {id:166,name:'Jamal Musiala',nation:'Deutschland',pos:'MI',rating:89},
+  {id:167,name:'Kai Havertz',nation:'Deutschland',pos:'MI',rating:85},
+  {id:168,name:'Leroy Sané',nation:'Deutschland',pos:'MI',rating:86},
+  {id:169,name:'Leon Goretzka',nation:'Deutschland',pos:'MI',rating:84},
+  {id:170,name:'İlkay Gündogan',nation:'Deutschland',pos:'MI',rating:85},
+  {id:171,name:'Pascal Groß',nation:'Deutschland',pos:'MI',rating:82},
+  {id:172,name:'Pedri',nation:'Spanien',pos:'MI',rating:88},
+  {id:173,name:'Gavi',nation:'Spanien',pos:'MI',rating:87},
+  {id:174,name:'Rodri',nation:'Spanien',pos:'MI',rating:91},
+  {id:175,name:'Lamine Yamal',nation:'Spanien',pos:'MI',rating:88},
+  {id:176,name:'Dani Olmo',nation:'Spanien',pos:'MI',rating:86},
+  {id:177,name:'Fabian Ruiz',nation:'Spanien',pos:'MI',rating:84},
+  {id:178,name:'Mikel Merino',nation:'Spanien',pos:'MI',rating:83},
+  {id:179,name:'Jude Bellingham',nation:'England',pos:'MI',rating:91},
+  {id:180,name:'Declan Rice',nation:'England',pos:'MI',rating:87},
+  {id:181,name:'Phil Foden',nation:'England',pos:'MI',rating:89},
+  {id:182,name:'Kobbie Mainoo',nation:'England',pos:'MI',rating:82},
+  {id:183,name:'Lewis Hall',nation:'England',pos:'MI',rating:80},
+  {id:184,name:'Conor Gallagher',nation:'England',pos:'MI',rating:81},
+  {id:185,name:'Bernardo Silva',nation:'Portugal',pos:'MI',rating:88},
+  {id:186,name:'Bruno Fernandes',nation:'Portugal',pos:'MI',rating:87},
+  {id:187,name:'Vitinha',nation:'Portugal',pos:'MI',rating:85},
+  {id:188,name:'João Neves',nation:'Portugal',pos:'MI',rating:84},
+  {id:189,name:'Rúben Neves',nation:'Portugal',pos:'MI',rating:83},
+  {id:190,name:'Antoine Griezmann',nation:'Frankreich',pos:'MI',rating:87},
+  {id:191,name:"N'Golo Kanté",nation:'Frankreich',pos:'MI',rating:85},
+  {id:192,name:'Aurélien Tchouaméni',nation:'Frankreich',pos:'MI',rating:86},
+  {id:193,name:'Eduardo Camavinga',nation:'Frankreich',pos:'MI',rating:84},
+  {id:194,name:'Adrien Rabiot',nation:'Frankreich',pos:'MI',rating:83},
+  {id:195,name:'Warren Zaïre-Emery',nation:'Frankreich',pos:'MI',rating:83},
+  {id:196,name:'Federico Valverde',nation:'Uruguay',pos:'MI',rating:88},
+  {id:197,name:'Nicolás de la Cruz',nation:'Uruguay',pos:'MI',rating:82},
+  {id:198,name:'Rodrigo Bentancur',nation:'Uruguay',pos:'MI',rating:83},
+  {id:199,name:'Manuel Ugarte',nation:'Uruguay',pos:'MI',rating:84},
+  {id:200,name:'Enzo Fernández',nation:'Argentinien',pos:'MI',rating:86},
+  {id:201,name:'Alexis Mac Allister',nation:'Argentinien',pos:'MI',rating:86},
+  {id:202,name:'Rodrigo De Paul',nation:'Argentinien',pos:'MI',rating:84},
+  {id:203,name:'Giovani Lo Celso',nation:'Argentinien',pos:'MI',rating:82},
+  {id:204,name:'Frenkie de Jong',nation:'Niederlande',pos:'MI',rating:87},
+  {id:205,name:'Tijjani Reijnders',nation:'Niederlande',pos:'MI',rating:85},
+  {id:206,name:'Ryan Gravenberch',nation:'Niederlande',pos:'MI',rating:84},
+  {id:207,name:'Xavi Simons',nation:'Niederlande',pos:'MI',rating:85},
+  {id:208,name:'Hakim Ziyech',nation:'Marokko',pos:'MI',rating:83},
+  {id:209,name:'Sofyan Amrabat',nation:'Marokko',pos:'MI',rating:83},
+  {id:210,name:'Azzedine Ounahi',nation:'Marokko',pos:'MI',rating:81},
+  {id:211,name:'Bilal El Khannouss',nation:'Marokko',pos:'MI',rating:82},
+  {id:212,name:'Lucas Paquetá',nation:'Brasilien',pos:'MI',rating:86},
+  {id:213,name:'Casemiro',nation:'Brasilien',pos:'MI',rating:84},
+  {id:214,name:'Bruno Guimarães',nation:'Brasilien',pos:'MI',rating:86},
+  {id:215,name:'Gerson',nation:'Brasilien',pos:'MI',rating:82},
+  {id:216,name:'Granit Xhaka',nation:'Schweiz',pos:'MI',rating:84},
+  {id:217,name:'Remo Freuler',nation:'Schweiz',pos:'MI',rating:82},
+  {id:218,name:'Denis Zakaria',nation:'Schweiz',pos:'MI',rating:80},
+  {id:219,name:'Xherdan Shaqiri',nation:'Schweiz',pos:'MI',rating:81},
+  {id:220,name:'Baraka Hakizimana',nation:'Schweiz',pos:'MI',rating:77},
+  {id:221,name:'Nicolo Barella',nation:'Italien',pos:'MI',rating:88},
+  {id:222,name:'Jorginho',nation:'Italien',pos:'MI',rating:82},
+  {id:223,name:'Sandro Tonali',nation:'Italien',pos:'MI',rating:85},
+  {id:224,name:'Lorenzo Pellegrini',nation:'Italien',pos:'MI',rating:83},
+  {id:225,name:'Bryan Cristante',nation:'Italien',pos:'MI',rating:80},
+  {id:226,name:'Piotr Zieliński',nation:'Polen',pos:'MI',rating:84},
+  {id:227,name:'Grzegorz Krychowiak',nation:'Polen',pos:'MI',rating:79},
+  {id:228,name:'Jakub Kiwior',nation:'Polen',pos:'MI',rating:79},
+  {id:229,name:'Kamil Grosicki',nation:'Polen',pos:'MI',rating:78},
+  {id:230,name:'Andriy Yarmolenko',nation:'Ukraine',pos:'MI',rating:80},
+  {id:231,name:'Mykhailo Mudryk',nation:'Ukraine',pos:'MI',rating:82},
+  {id:232,name:'Ruslan Malinovskyi',nation:'Ukraine',pos:'MI',rating:81},
+  {id:233,name:'Oleksandr Zinchenko',nation:'Ukraine',pos:'MI',rating:83},
+  {id:234,name:'Viktor Tsygankov',nation:'Ukraine',pos:'MI',rating:79},
+  {id:235,name:'Mohamed Elneny',nation:'Ägypten',pos:'MI',rating:80},
+  {id:236,name:'Tarek Hamed',nation:'Ägypten',pos:'MI',rating:78},
+  {id:237,name:'Amr El-Solia',nation:'Ägypten',pos:'MI',rating:77},
+  {id:238,name:'Hamed Junior Traoré',nation:'Elfenbeinküste',pos:'MI',rating:80},
+  {id:239,name:'Franck Kessié',nation:'Elfenbeinküste',pos:'MI',rating:83},
+  {id:240,name:'Ismaël Traoré',nation:'Elfenbeinküste',pos:'MI',rating:76},
+  {id:241,name:'Ibrahim Sangaré',nation:'Elfenbeinküste',pos:'MI',rating:82},
+  {id:242,name:'Sofiane Feghouli',nation:'Algerien',pos:'MI',rating:80},
+  {id:243,name:'Nabil Bentaleb',nation:'Algerien',pos:'MI',rating:79},
+  {id:244,name:'Haris Belkebla',nation:'Algerien',pos:'MI',rating:79},
+  {id:245,name:'Léandre Tawamba',nation:'Kamerun',pos:'MI',rating:77},
+  {id:246,name:'André-Frank Zambo Anguissa',nation:'Kamerun',pos:'MI',rating:84},
+  {id:247,name:'Martin Hongla',nation:'Kamerun',pos:'MI',rating:77},
+  {id:248,name:'Idrissa Gueye',nation:'Senegal',pos:'MI',rating:83},
+  {id:249,name:'Nampalys Mendy',nation:'Senegal',pos:'MI',rating:78},
+  {id:250,name:'Cheikhou Kouyaté',nation:'Senegal',pos:'MI',rating:79},
+  {id:251,name:'Frank Onyeka',nation:'Nigeria',pos:'MI',rating:78},
+  {id:252,name:'Alex Iwobi',nation:'Nigeria',pos:'MI',rating:81},
+  {id:253,name:'Wilfred Ndidi',nation:'Nigeria',pos:'MI',rating:82},
+  {id:254,name:'Samuel Chukwueze',nation:'Nigeria',pos:'MI',rating:81},
+  {id:255,name:'Faisal Al-Ghamdi',nation:'Saudi-Arabien',pos:'MI',rating:77},
+  {id:256,name:'Mohamed Kanno',nation:'Saudi-Arabien',pos:'MI',rating:78},
+  {id:257,name:'Sami Al-Najei',nation:'Saudi-Arabien',pos:'MI',rating:77},
+  {id:258,name:'Wataru Endo',nation:'Japan',pos:'MI',rating:82},
+  {id:259,name:'Daichi Kamada',nation:'Japan',pos:'MI',rating:83},
+  {id:260,name:'Gaku Shibasaki',nation:'Japan',pos:'MI',rating:79},
+  {id:261,name:'Junya Ito',nation:'Japan',pos:'MI',rating:82},
+  {id:262,name:'Lee Jae-sung',nation:'Südkorea',pos:'MI',rating:81},
+  {id:263,name:'Hwang In-beom',nation:'Südkorea',pos:'MI',rating:80},
+  {id:264,name:'Jung Woo-young',nation:'Südkorea',pos:'MI',rating:79},
+  {id:265,name:'Lee Kang-in',nation:'Südkorea',pos:'MI',rating:84},
+  {id:266,name:'Marcel Sabitzer',nation:'Österreich',pos:'MI',rating:84},
+  {id:267,name:'Konrad Laimer',nation:'Österreich',pos:'MI',rating:82},
+  {id:268,name:'David Alaba',nation:'Österreich',pos:'MI',rating:83},
+  {id:269,name:'Christoph Baumgartner',nation:'Österreich',pos:'MI',rating:82},
+  {id:270,name:'Sergej Milinković-Savić',nation:'Serbien',pos:'MI',rating:85},
+  {id:271,name:'Nemanja Maksimović',nation:'Serbien',pos:'MI',rating:79},
+  {id:272,name:'Dušan Tadić',nation:'Serbien',pos:'MI',rating:82},
+  {id:273,name:'Ivan Ilić',nation:'Serbien',pos:'MI',rating:80},
+  {id:274,name:'Moisés Caicedo',nation:'Ecuador',pos:'MI',rating:84},
+  {id:275,name:'Carlos Gruezo',nation:'Ecuador',pos:'MI',rating:79},
+  {id:276,name:'Jhegson Méndez',nation:'Ecuador',pos:'MI',rating:78},
+  {id:277,name:'Héctor Herrera',nation:'Mexiko',pos:'MI',rating:82},
+  {id:278,name:'Andrés Guardado',nation:'Mexiko',pos:'MI',rating:80},
+  {id:279,name:'Roberto Alvarado',nation:'Mexiko',pos:'MI',rating:81},
+  {id:280,name:'Luis Chávez',nation:'Mexiko',pos:'MI',rating:80},
+  {id:281,name:'Diego Gómez',nation:'Paraguay',pos:'MI',rating:78},
+  {id:282,name:'Mathías Villasanti',nation:'Paraguay',pos:'MI',rating:78},
+  {id:283,name:'Miguel Almirón',nation:'Paraguay',pos:'MI',rating:82},
+  {id:284,name:'Tyler Adams',nation:'USA',pos:'MI',rating:82},
+  {id:285,name:'Weston McKennie',nation:'USA',pos:'MI',rating:81},
+  {id:286,name:'Yunus Musah',nation:'USA',pos:'MI',rating:82},
+  {id:287,name:'Gio Reyna',nation:'USA',pos:'MI',rating:81},
+  {id:288,name:'Djordje Mihailovic',nation:'USA',pos:'MI',rating:79},
+  {id:289,name:'Alphonso Davies',nation:'Kanada',pos:'MI',rating:86},
+  {id:290,name:'Tajon Buchanan',nation:'Kanada',pos:'MI',rating:80},
+  {id:291,name:'Stephen Eustáquio',nation:'Kanada',pos:'MI',rating:81},
+  {id:292,name:'Atiba Hutchinson',nation:'Kanada',pos:'MI',rating:78},
+  {id:293,name:'James Sands',nation:'USA',pos:'MI',rating:78},
+  {id:294,name:'Georgiy Sudakov',nation:'Ukraine',pos:'MI',rating:82},
+  {id:295,name:'Giorgi Chakvetadze',nation:'Georgien',pos:'MI',rating:80},
+  {id:296,name:'Giorgi Kochorashvili',nation:'Georgien',pos:'MI',rating:80},
+  {id:297,name:'Zuriko Davitashvili',nation:'Georgien',pos:'MI',rating:79},
+  {id:298,name:'Anel Hadžić',nation:'Bosnien-Herzegowina',pos:'MI',rating:76},
+  {id:299,name:'Haris Hajradinović',nation:'Bosnien-Herzegowina',pos:'MI',rating:77},
+  {id:300,name:'Miralem Pjanić',nation:'Bosnien-Herzegowina',pos:'MI',rating:80},
+  {id:301,name:'Lassana Coulibaly',nation:'Elfenbeinküste',pos:'MI',rating:76},
+  {id:302,name:'Ellyes Skhiri',nation:'Tunesien',pos:'MI',rating:80},
+  {id:303,name:'Mohamed Ali Ben Romdhane',nation:'Tunesien',pos:'MI',rating:77},
+  {id:304,name:'Seifeddine Jaziri',nation:'Tunesien',pos:'MI',rating:77},
+  {id:305,name:'Nassim Boujellab',nation:'Tunesien',pos:'MI',rating:76},
+  {id:306,name:'Kudus Mohammed',nation:'Ghana',pos:'MI',rating:83},
+  {id:307,name:'Thomas Partey',nation:'Ghana',pos:'MI',rating:84},
+  {id:308,name:'Baba Rahman',nation:'Ghana',pos:'MI',rating:79},
+  {id:309,name:'Fatawu Issahaku',nation:'Ghana',pos:'MI',rating:78},
+  {id:310,name:'Hamza Choudhury',nation:'England',pos:'MI',rating:79},
+  {id:311,name:'Seko Fofana',nation:'Elfenbeinküste',pos:'MI',rating:82},
+  {id:312,name:'Toni Kroos',nation:'Deutschland',pos:'MI',rating:87},
+  {id:313,name:'Antonio Candreva',nation:'Italien',pos:'MI',rating:79},
+  {id:314,name:'Giacomo Raspadori',nation:'Italien',pos:'MI',rating:81},
+  {id:315,name:'Rayan Aït Nouri',nation:'Algerien',pos:'MI',rating:80},
+  {id:316,name:'Pablo Barrios',nation:'Spanien',pos:'MI',rating:82},
+  {id:317,name:'Mohamed Salah',nation:'Ägypten',pos:'AN',rating:90},
   // ── ANGRIFF ──────────────────────────────────────────────────────
-  {id:74,name:'Kylian Mbappé',nation:'Frankreich',pos:'AN',rating:95},
-  {id:75,name:'Erling Haaland',nation:'Norwegen',pos:'AN',rating:94},
-  {id:76,name:'Lionel Messi',nation:'Argentinien',pos:'AN',rating:91},
-  {id:77,name:'Cristiano Ronaldo',nation:'Portugal',pos:'AN',rating:89},
-  {id:78,name:'Vinicius Jr.',nation:'Brasilien',pos:'AN',rating:93},
-  {id:79,name:'Harry Kane',nation:'England',pos:'AN',rating:90},
-  {id:80,name:'Bukayo Saka',nation:'England',pos:'AN',rating:88},
-  {id:81,name:'Rafael Leão',nation:'Portugal',pos:'AN',rating:87},
-  {id:82,name:'Gonçalo Ramos',nation:'Portugal',pos:'AN',rating:84},
-  {id:83,name:'Neymar Jr.',nation:'Brasilien',pos:'AN',rating:86},
-  {id:84,name:'Rodrygo',nation:'Brasilien',pos:'AN',rating:87},
-  {id:85,name:'Julian Alvarez',nation:'Argentinien',pos:'AN',rating:87},
-  {id:86,name:'Lautaro Martínez',nation:'Argentinien',pos:'AN',rating:89},
-  {id:87,name:'Cody Gakpo',nation:'Niederlande',pos:'AN',rating:85},
-  {id:88,name:'Memphis Depay',nation:'Niederlande',pos:'AN',rating:83},
-  {id:89,name:'Romelu Lukaku',nation:'Belgien',pos:'AN',rating:85},
-  {id:90,name:'Ousmane Dembélé',nation:'Frankreich',pos:'AN',rating:87},
-  {id:91,name:'Mohamed Salah',nation:'Ägypten',pos:'AN',rating:90},
-  {id:92,name:'Darwin Núñez',nation:'Uruguay',pos:'AN',rating:86},
-  {id:93,name:'Richarlison',nation:'Brasilien',pos:'AN',rating:84},
-  {id:94,name:'João Félix',nation:'Portugal',pos:'AN',rating:84},
-  {id:95,name:'Youssef En-Nesyri',nation:'Marokko',pos:'AN',rating:82},
-  {id:96,name:'Gabriel Martinelli',nation:'Brasilien',pos:'AN',rating:85},
-  {id:97,name:'Sadio Mané',nation:'Senegal',pos:'AN',rating:85},
-  {id:98,name:'Son Heung-min',nation:'Südkorea',pos:'AN',rating:88},
-  {id:99,name:'Serge Gnabry',nation:'Deutschland',pos:'AN',rating:85},
-  {id:100,name:'Thomas Müller',nation:'Deutschland',pos:'AN',rating:84},
-  {id:101,name:'Niclas Füllkrug',nation:'Deutschland',pos:'AN',rating:84},
-  {id:102,name:'Deniz Undav',nation:'Deutschland',pos:'AN',rating:82},
-  {id:103,name:'Karim Adeyemi',nation:'Deutschland',pos:'AN',rating:83},
+  {id:318,name:'Kylian Mbappé',nation:'Frankreich',pos:'AN',rating:95},
+  {id:319,name:'Erling Haaland',nation:'Norwegen',pos:'AN',rating:94},
+  {id:320,name:'Lionel Messi',nation:'Argentinien',pos:'AN',rating:91},
+  {id:321,name:'Cristiano Ronaldo',nation:'Portugal',pos:'AN',rating:89},
+  {id:322,name:'Vinicius Jr.',nation:'Brasilien',pos:'AN',rating:93},
+  {id:323,name:'Harry Kane',nation:'England',pos:'AN',rating:90},
+  {id:324,name:'Bukayo Saka',nation:'England',pos:'AN',rating:88},
+  {id:325,name:'Marcus Rashford',nation:'England',pos:'AN',rating:85},
+  {id:326,name:'Ollie Watkins',nation:'England',pos:'AN',rating:84},
+  {id:327,name:'Ivan Toney',nation:'England',pos:'AN',rating:82},
+  {id:328,name:'Rafael Leão',nation:'Portugal',pos:'AN',rating:87},
+  {id:329,name:'Gonçalo Ramos',nation:'Portugal',pos:'AN',rating:84},
+  {id:330,name:'Pedro Neto',nation:'Portugal',pos:'AN',rating:83},
+  {id:331,name:'Neymar Jr.',nation:'Brasilien',pos:'AN',rating:86},
+  {id:332,name:'Rodrygo',nation:'Brasilien',pos:'AN',rating:87},
+  {id:333,name:'Richarlison',nation:'Brasilien',pos:'AN',rating:84},
+  {id:334,name:'Gabriel Martinelli',nation:'Brasilien',pos:'AN',rating:85},
+  {id:335,name:'Endrick',nation:'Brasilien',pos:'AN',rating:82},
+  {id:336,name:'Julian Alvarez',nation:'Argentinien',pos:'AN',rating:87},
+  {id:337,name:'Lautaro Martínez',nation:'Argentinien',pos:'AN',rating:89},
+  {id:338,name:'Ángel Correa',nation:'Argentinien',pos:'AN',rating:82},
+  {id:339,name:'Nicolás González',nation:'Argentinien',pos:'AN',rating:81},
+  {id:340,name:'Cody Gakpo',nation:'Niederlande',pos:'AN',rating:85},
+  {id:341,name:'Memphis Depay',nation:'Niederlande',pos:'AN',rating:83},
+  {id:342,name:'Donyell Malen',nation:'Niederlande',pos:'AN',rating:82},
+  {id:343,name:'Wout Weghorst',nation:'Niederlande',pos:'AN',rating:80},
+  {id:344,name:'Romelu Lukaku',nation:'Belgien',pos:'AN',rating:85},
+  {id:345,name:'Lois Openda',nation:'Belgien',pos:'AN',rating:83},
+  {id:346,name:'Dodi Lukébakio',nation:'Belgien',pos:'AN',rating:81},
+  {id:347,name:'Ousmane Dembélé',nation:'Frankreich',pos:'AN',rating:87},
+  {id:348,name:'Marcus Thuram',nation:'Frankreich',pos:'AN',rating:85},
+  {id:349,name:'Randal Kolo Muani',nation:'Frankreich',pos:'AN',rating:83},
+  {id:350,name:'Kingsley Coman',nation:'Frankreich',pos:'AN',rating:84},
+  {id:351,name:'Oumar Diakité',nation:'Frankreich',pos:'AN',rating:80},
+  {id:352,name:'Darwin Núñez',nation:'Uruguay',pos:'AN',rating:86},
+  {id:353,name:'Luis Suárez',nation:'Uruguay',pos:'AN',rating:83},
+  {id:354,name:'Facundo Torres',nation:'Uruguay',pos:'AN',rating:81},
+  {id:355,name:'Maximiliano Araújo',nation:'Uruguay',pos:'AN',rating:80},
+  {id:357,name:'Youssef En-Nesyri',nation:'Marokko',pos:'AN',rating:82},
+  {id:358,name:'Soufiane Rahimi',nation:'Marokko',pos:'AN',rating:80},
+  {id:359,name:'Abde Ezzalzouli',nation:'Marokko',pos:'AN',rating:80},
+  {id:360,name:'Son Heung-min',nation:'Südkorea',pos:'AN',rating:88},
+  {id:361,name:'Hwang Hee-chan',nation:'Südkorea',pos:'AN',rating:83},
+  {id:362,name:'Cho Gue-sung',nation:'Südkorea',pos:'AN',rating:81},
+  {id:363,name:'Serge Gnabry',nation:'Deutschland',pos:'AN',rating:85},
+  {id:364,name:'Thomas Müller',nation:'Deutschland',pos:'AN',rating:84},
+  {id:365,name:'Niclas Füllkrug',nation:'Deutschland',pos:'AN',rating:84},
+  {id:366,name:'Deniz Undav',nation:'Deutschland',pos:'AN',rating:82},
+  {id:367,name:'Karim Adeyemi',nation:'Deutschland',pos:'AN',rating:83},
+  {id:368,name:'Sadio Mané',nation:'Senegal',pos:'AN',rating:85},
+  {id:369,name:'Ismaila Sarr',nation:'Senegal',pos:'AN',rating:82},
+  {id:370,name:'Boulaye Dia',nation:'Senegal',pos:'AN',rating:81},
+  {id:371,name:'Famara Diédhiou',nation:'Senegal',pos:'AN',rating:79},
+  {id:372,name:'Victor Osimhen',nation:'Nigeria',pos:'AN',rating:88},
+  {id:373,name:'Kelechi Iheanacho',nation:'Nigeria',pos:'AN',rating:81},
+  {id:374,name:'Ademola Lookman',nation:'Nigeria',pos:'AN',rating:83},
+  {id:375,name:'Moses Simon',nation:'Nigeria',pos:'AN',rating:80},
+  {id:376,name:'Saleh Al-Shehri',nation:'Saudi-Arabien',pos:'AN',rating:79},
+  {id:377,name:'Firas Al-Buraikan',nation:'Saudi-Arabien',pos:'AN',rating:78},
+  {id:378,name:'Abdul Aziz Qanber',nation:'Katar',pos:'AN',rating:75},
+  {id:379,name:'Almoez Ali',nation:'Katar',pos:'AN',rating:78},
+  {id:380,name:'Akram Afif',nation:'Katar',pos:'AN',rating:80},
+  {id:381,name:'Kaoru Mitoma',nation:'Japan',pos:'AN',rating:85},
+  {id:382,name:'Ayase Ueda',nation:'Japan',pos:'AN',rating:81},
+  {id:383,name:'Hiroki Ito',nation:'Japan',pos:'AN',rating:79},
+  {id:384,name:'Takumi Minamino',nation:'Japan',pos:'AN',rating:82},
+  {id:385,name:'Roozbeh Cheshmi',nation:'Iran',pos:'MI',rating:77},
+  {id:386,name:'Mehdi Taremi',nation:'Iran',pos:'AN',rating:83},
+  {id:387,name:'Sardar Azmoun',nation:'Iran',pos:'AN',rating:82},
+  {id:388,name:'Alireza Jahanbakhsh',nation:'Iran',pos:'AN',rating:79},
+  {id:389,name:'Marko Arnautović',nation:'Österreich',pos:'AN',rating:82},
+  {id:390,name:'Michael Gregoritsch',nation:'Österreich',pos:'AN',rating:80},
+  {id:391,name:'Patrick Wimmer',nation:'Österreich',pos:'AN',rating:79},
+  {id:392,name:'Aleksandar Mitrović',nation:'Serbien',pos:'AN',rating:84},
+  {id:393,name:'Dušan Vlahović',nation:'Serbien',pos:'AN',rating:85},
+  {id:394,name:'Luka Jović',nation:'Serbien',pos:'AN',rating:81},
+  {id:395,name:'Enner Valencia',nation:'Ecuador',pos:'AN',rating:82},
+  {id:396,name:'Leonardo Campana',nation:'Ecuador',pos:'AN',rating:78},
+  {id:397,name:'Ángel Mena',nation:'Ecuador',pos:'AN',rating:77},
+  {id:398,name:'Hirving Lozano',nation:'Mexiko',pos:'AN',rating:84},
+  {id:399,name:'Henry Martín',nation:'Mexiko',pos:'AN',rating:81},
+  {id:400,name:'Santiago Giménez',nation:'Mexiko',pos:'AN',rating:83},
+  {id:401,name:'Jesús Manuel Corona',nation:'Mexiko',pos:'AN',rating:79},
+  {id:402,name:'Oscar Romero',nation:'Paraguay',pos:'AN',rating:80},
+  {id:403,name:'Julio Enciso',nation:'Paraguay',pos:'AN',rating:81},
+  {id:404,name:'Antonio Sanabria',nation:'Paraguay',pos:'AN',rating:80},
+  {id:405,name:'Christian Pulisic',nation:'USA',pos:'AN',rating:85},
+  {id:406,name:'Timothy Weah',nation:'USA',pos:'AN',rating:81},
+  {id:407,name:'Folarin Balogun',nation:'USA',pos:'AN',rating:80},
+  {id:408,name:'Ricardo Pepi',nation:'USA',pos:'AN',rating:80},
+  {id:409,name:'Jonathan David',nation:'Kanada',pos:'AN',rating:85},
+  {id:410,name:'Cyle Larin',nation:'Kanada',pos:'AN',rating:80},
+  {id:411,name:'Richie Laryea',nation:'Kanada',pos:'AN',rating:78},
+  {id:412,name:'Nuno Santos',nation:'Portugal',pos:'AN',rating:80},
+  {id:413,name:'Khvicha Kvaratskhelia',nation:'Georgien',pos:'AN',rating:87},
+  {id:414,name:'Giorgi Mikautadze',nation:'Georgien',pos:'AN',rating:82},
+  {id:415,name:'Otar Kiteishvili',nation:'Georgien',pos:'AN',rating:80},
+  {id:416,name:'Edin Džeko',nation:'Bosnien-Herzegowina',pos:'AN',rating:80},
+  {id:417,name:'Ermedin Demirović',nation:'Bosnien-Herzegowina',pos:'AN',rating:80},
+  {id:418,name:'Ante Budimir',nation:'Kroatien',pos:'AN',rating:80},
+  {id:419,name:'Andrej Kramarić',nation:'Kroatien',pos:'AN',rating:83},
+  {id:420,name:'Bruno Petković',nation:'Kroatien',pos:'AN',rating:78},
+  {id:421,name:'Roland Sallai',nation:'Ungarn',pos:'AN',rating:80},
+  {id:422,name:'Barnabás Varga',nation:'Ungarn',pos:'AN',rating:79},
+  {id:423,name:'Dominik Szoboszlai',nation:'Ungarn',pos:'MI',rating:85},
+  {id:424,name:'Maxwel Cornet',nation:'Elfenbeinküste',pos:'AN',rating:81},
+  {id:425,name:'Nicolas Pépé',nation:'Elfenbeinküste',pos:'AN',rating:82},
+  {id:426,name:'Sébastien Haller',nation:'Elfenbeinküste',pos:'AN',rating:82},
+  {id:427,name:'Jean-Philippe Krasso',nation:'Elfenbeinküste',pos:'AN',rating:77},
+  {id:428,name:'Islam Slimani',nation:'Algerien',pos:'AN',rating:80},
+  {id:429,name:'Riyad Mahrez',nation:'Algerien',pos:'AN',rating:85},
+  {id:430,name:'Baghdad Bounedjah',nation:'Algerien',pos:'AN',rating:79},
+  {id:431,name:'Youcef Belaïli',nation:'Algerien',pos:'AN',rating:79},
+  {id:432,name:'Bryan Mbeumo',nation:'Kamerun',pos:'AN',rating:82},
+  {id:433,name:'Vincent Aboubakar',nation:'Kamerun',pos:'AN',rating:83},
+  {id:434,name:'Karl Toko Ekambi',nation:'Kamerun',pos:'AN',rating:80},
+  {id:435,name:'Wahbi Khazri',nation:'Tunesien',pos:'AN',rating:80},
+  {id:436,name:'Youssef Msakni',nation:'Tunesien',pos:'AN',rating:78},
+  {id:437,name:'Naïm Sliti',nation:'Tunesien',pos:'AN',rating:77},
+  {id:438,name:'Jordan Ayew',nation:'Ghana',pos:'AN',rating:80},
+  {id:439,name:'Antoine Semenyo',nation:'Ghana',pos:'AN',rating:80},
+  {id:440,name:'Inaki Williams',nation:'Ghana',pos:'AN',rating:82},
+  {id:441,name:'Felix Afena-Gyan',nation:'Ghana',pos:'AN',rating:78},
+  {id:442,name:'Dieumerci Mbokani',nation:'Kongo DR',pos:'AN',rating:77},
+  {id:443,name:'Cédric Bakambu',nation:'Kongo DR',pos:'AN',rating:79},
+  {id:444,name:'Arthur Masuaku',nation:'Kongo DR',pos:'MI',rating:78},
+  {id:445,name:'Gaël Kakuta',nation:'Kongo DR',pos:'MI',rating:79},
+  {id:446,name:'Percy Tau',nation:'Südafrika',pos:'AN',rating:79},
+  {id:447,name:'Lyle Foster',nation:'Südafrika',pos:'AN',rating:79},
+  {id:448,name:'Evidence Makgopa',nation:'Südafrika',pos:'AN',rating:77},
+  {id:449,name:'Bradley Barcola',nation:'Frankreich',pos:'AN',rating:82},
+  {id:450,name:'Michael Olise',nation:'Frankreich',pos:'AN',rating:83},
+  {id:451,name:'Mateus Uribe',nation:'Kolumbien',pos:'MI',rating:80},
+  {id:452,name:'James Rodríguez',nation:'Kolumbien',pos:'MI',rating:84},
+  {id:453,name:'Jhon Arias',nation:'Kolumbien',pos:'MI',rating:81},
+  {id:454,name:'Richard Ríos',nation:'Kolumbien',pos:'MI',rating:80},
+  {id:455,name:'Luis Díaz',nation:'Kolumbien',pos:'AN',rating:87},
+  {id:456,name:'Falcao',nation:'Kolumbien',pos:'AN',rating:79},
+  {id:457,name:'Borré Muriel',nation:'Kolumbien',pos:'AN',rating:81},
+  {id:458,name:'John Córdoba',nation:'Kolumbien',pos:'AN',rating:80},
+  {id:459,name:'Davinson Sánchez',nation:'Kolumbien',pos:'LA',rating:82},
+  {id:460,name:'Daniel Muñoz',nation:'Kolumbien',pos:'LA',rating:80},
+  {id:461,name:'Yerry Mina',nation:'Kolumbien',pos:'LA',rating:80},
+  {id:462,name:'Camilo Vargas',nation:'Kolumbien',pos:'ST',rating:79},
+  {id:463,name:'Edinson Cavani',nation:'Uruguay',pos:'AN',rating:80},
+  {id:464,name:'Hayao Kawabe',nation:'Japan',pos:'MI',rating:80},
+  {id:465,name:'Yoshida Maya',nation:'Japan',pos:'LA',rating:79},
+  {id:466,name:'Takefusa Kubo',nation:'Japan',pos:'MI',rating:83},
+  {id:467,name:'Hwang Ui-jo',nation:'Südkorea',pos:'AN',rating:81},
+  {id:468,name:'Noa Lang',nation:'Niederlande',pos:'AN',rating:82},
+  {id:469,name:'Ruben Aguilar',nation:'Frankreich',pos:'LA',rating:79},
+  {id:470,name:'Ousmane Diomande',nation:'Elfenbeinküste',pos:'LA',rating:80},
+  {id:471,name:'Ola Solbakken',nation:'Norwegen',pos:'AN',rating:79},
+  {id:472,name:'Alexander Sørloth',nation:'Norwegen',pos:'AN',rating:83},
+  {id:473,name:'Marcus Holmgren Pedersen',nation:'Norwegen',pos:'LA',rating:79},
+  {id:474,name:'Martin Ødegaard',nation:'Norwegen',pos:'MI',rating:88},
+  {id:475,name:'Sander Berge',nation:'Norwegen',pos:'MI',rating:82},
+  {id:476,name:'Andreas Hoelgebaum',nation:'Norwegen',pos:'MI',rating:77},
+  {id:477,name:'Ayoub El Kaabi',nation:'Marokko',pos:'AN',rating:81},
 ];
 
 const _DEFAULT_PLAYERS=PLAYERS.map(p=>({...p})); // keep backup of defaults
@@ -6006,6 +6390,112 @@ async function init(){
 
 init();
 
+// ── ONBOARDING ────────────────────────────────────────────────────
+let currentSlide=1;
+function showOnboarding(){
+  const modal=document.getElementById('onboarding-modal');
+  if(modal){modal.style.display='flex';nextSlide(1);}
+}
+function nextSlide(num){
+  document.querySelectorAll('.onboard-slide').forEach(s=>s.style.display='none');
+  const slide=document.getElementById('slide-'+num);
+  if(slide)slide.style.display='block';
+  currentSlide=num;
+  const progress=document.getElementById('onboard-progress');
+  if(progress)progress.style.width=(num/4*100)+'%';
+}
+function closeOnboarding(){
+  const modal=document.getElementById('onboarding-modal');
+  if(modal)modal.style.display='none';
+  localStorage.setItem('fwm_onboarded','true');
+}
+
 </script>
+
+<!-- ONBOARDING MODAL -->
+<div id="onboarding-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:900;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;max-width:400px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="height:4px;background:#f1f5f9">
+      <div id="onboard-progress" style="height:100%;background:linear-gradient(90deg,#0a4a2e,#4ade80);border-radius:2px;transition:width 0.4s ease;width:25%"></div>
+    </div>
+    <div id="onboard-slides">
+      <div class="onboard-slide" id="slide-1" style="padding:32px;text-align:center">
+        <div style="font-size:64px;margin-bottom:16px">🏆</div>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0a4a2e;margin-bottom:8px">Willkommen!</h2>
+        <p style="font-size:14px;color:#6b7280;line-height:1.6;margin-bottom:24px">Fantasy WM 2026 — baue dein Traumteam aus echten WM-Spielern und sammle Punkte!</p>
+        <div style="background:#f0fdf4;border-radius:12px;padding:16px;text-align:left;margin-bottom:24px">
+          <div style="font-weight:700;color:#166534;margin-bottom:8px">So funktioniert es:</div>
+          <div style="font-size:13px;color:#374151;display:flex;flex-direction:column;gap:6px">
+            <div>🎯 <strong>Draft</strong> — Wähle reihum WM-Spieler</div>
+            <div>⚽ <strong>Punkte</strong> — Deine Spieler sammeln Punkte bei WM-Spielen</div>
+            <div>🏅 <strong>Gewinnen</strong> — Wer am Ende die meisten Punkte hat gewinnt!</div>
+          </div>
+        </div>
+        <button onclick="nextSlide(2)" style="width:100%;background:#0a4a2e;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Los geht's →</button>
+      </div>
+      <div class="onboard-slide" id="slide-2" style="display:none;padding:32px;text-align:center">
+        <div style="font-size:64px;margin-bottom:16px">🎯</div>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0a4a2e;margin-bottom:8px">Der Draft</h2>
+        <p style="font-size:14px;color:#6b7280;line-height:1.6;margin-bottom:20px">Alle Manager draften reihum Spieler. Du hast 90 Sekunden pro Pick!</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;text-align:left">
+          <div style="background:#f0fdf4;border-radius:10px;padding:12px">
+            <div style="font-size:20px;margin-bottom:4px">⭐</div>
+            <div style="font-weight:700;font-size:13px;color:#166534">Watchlist</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Spieler vormerken für wenn du dran bist</div>
+          </div>
+          <div style="background:#f0fdf4;border-radius:10px;padding:12px">
+            <div style="font-size:20px;margin-bottom:4px">🎭</div>
+            <div style="font-weight:700;font-size:13px;color:#166534">Mock Draft</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Übe vorher ohne Konsequenzen</div>
+          </div>
+          <div style="background:#f0fdf4;border-radius:10px;padding:12px">
+            <div style="font-size:20px;margin-bottom:4px">🐍</div>
+            <div style="font-weight:700;font-size:13px;color:#166534">Snake Draft</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Runde 1: 1→N, Runde 2: N→1</div>
+          </div>
+          <div style="background:#f0fdf4;border-radius:10px;padding:12px">
+            <div style="font-size:20px;margin-bottom:4px">📱</div>
+            <div style="font-weight:700;font-size:13px;color:#166534">Push Alerts</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Wirst benachrichtigt wenn du dran bist</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="nextSlide(1)" style="flex:1;background:#f1f5f9;color:#374151;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">← Zurück</button>
+          <button onclick="nextSlide(3)" style="flex:2;background:#0a4a2e;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Weiter →</button>
+        </div>
+      </div>
+      <div class="onboard-slide" id="slide-3" style="display:none;padding:32px;text-align:center">
+        <div style="font-size:64px;margin-bottom:16px">⚽</div>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0a4a2e;margin-bottom:8px">Punkte sammeln</h2>
+        <p style="font-size:14px;color:#6b7280;line-height:1.6;margin-bottom:20px">Deine Spieler sammeln Punkte bei echten WM-Spielen!</p>
+        <div style="background:#f9fafb;border-radius:12px;padding:16px;text-align:left;margin-bottom:24px">
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span>⚽ Tor (Angriff)</span><span style="font-weight:700;color:#166534">+8 Punkte</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span>🅰️ Assist</span><span style="font-weight:700;color:#166534">+4 Punkte</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span>🧤 Clean Sheet (TW)</span><span style="font-weight:700;color:#166534">+8 Punkte</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e5e7eb"><span>🟨 Gelbe Karte</span><span style="font-weight:700;color:#c0392b">−1 Punkt</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0"><span>⭐ Captain (2× Punkte)</span><span style="font-weight:700;color:#854d0e">×2</span></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="nextSlide(2)" style="flex:1;background:#f1f5f9;color:#374151;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif">← Zurück</button>
+          <button onclick="nextSlide(4)" style="flex:2;background:#0a4a2e;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Weiter →</button>
+        </div>
+      </div>
+      <div class="onboard-slide" id="slide-4" style="display:none;padding:32px;text-align:center">
+        <div style="font-size:64px;margin-bottom:16px">🚀</div>
+        <h2 style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#0a4a2e;margin-bottom:8px">Bereit!</h2>
+        <p style="font-size:14px;color:#6b7280;line-height:1.6;margin-bottom:24px">Die WM startet am <strong>11. Juni 2026</strong>.<br>Übe jetzt mit dem Mock Draft!</p>
+        <div style="background:linear-gradient(135deg,#0a4a2e,#0d6b42);border-radius:12px;padding:16px;margin-bottom:16px;cursor:pointer" onclick="closeOnboarding();showView('draft');setTimeout(()=>toggleMockDraft&&toggleMockDraft(),500)">
+          <div style="font-size:24px;margin-bottom:4px">🎭</div>
+          <div style="font-weight:700;color:#fff;font-size:14px">Mock Draft starten</div>
+          <div style="font-size:12px;color:#9de0b8;margin-top:2px">Übe ohne Konsequenzen</div>
+        </div>
+        <button onclick="closeOnboarding()" style="width:100%;background:#f1f5f9;color:#374151;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">Zur App →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
