@@ -254,7 +254,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .pos-filter button.active{background:var(--green);color:#fff;border-color:var(--green);box-shadow:0 2px 6px rgba(10,74,46,0.3);}
 
 /* ── POS BADGES ───────────────────────────────────────────────── */
-.pos-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;display:inline-block;overflow:visible;min-width:fit-content;}
+.pos-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;display:inline-block;overflow:visible;min-width:fit-content;flex-shrink:0;}
 .pos-ST{background:#dbeafe;color:#1e40af;}
 .pos-LA{background:#fef9c3;color:#854d0e;}
 .pos-MI{background:#fce7f3;color:#9d174d;}
@@ -1647,7 +1647,7 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   if(!state.playerFlags)state.playerFlags={};
   if(!state.playerStatus)state.playerStatus={};
   if(!state.managers)state.managers=[];
-  if(!state.squadSize)state.squadSize=14;
+  if(!state.squadSize||state.squadSize===0)state.squadSize=14;
   applyCustomPlayers(); // use custom player list if set by admin
   document.getElementById('liga-select').style.display='none';
   const app=document.getElementById('app');
@@ -1944,7 +1944,7 @@ function updatePhaseBadge(){
 }
 
 function getShareUrl(){
-  return 'https://tzigerlig.github.io/fantasy-wm/'+(currentLigaCode?'?liga='+currentLigaCode:'');
+  return (window.location.origin+'/fantasy-wm/')+(currentLigaCode?'?liga='+currentLigaCode:'');
 }
 
 function copyLink(){
@@ -2318,7 +2318,7 @@ function renderSetup(){
   const sl=document.getElementById('share-link');
   if(sl)sl.value=shareUrl;
   const qr=document.getElementById('qr-code');
-  if(qr)qr.src='https://api.qrserver.com/v1/create-qr-code/?size=80x80&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent(shareUrl);
+  if(qr)setTimeout(()=>{qr.src='https://api.qrserver.com/v1/create-qr-code/?size=80x80&bgcolor=ffffff&color=0a4a2e&data='+encodeURIComponent(shareUrl);},100);
 
   // ── INSTALL BUTTON VISIBILITY ──────────────────
   const isInstalled=window.matchMedia('(display-mode: standalone)').matches;
@@ -2631,7 +2631,7 @@ let lastNotifiedPick=-1;
 let lastTradeCount=0;
 let drPickTimer=null;
 let drPickTimeLeft=90;
-const DR_PICK_TIME=90; // seconds per pick
+let DR_PICK_TIME=90; // seconds per pick
 
 // Position limits based on squad size
 function getPosLimits(squadSize){
@@ -2715,7 +2715,7 @@ function updateDraftHeader(){
   const nextBar=document.getElementById('dr-next-bar');
 
   if(squadCount){
-    const myLen=(ds.squads[myName]||[]).length;
+    const myLen=((ds.squads||{})[myName]||[]).length;
     squadCount.textContent=myLen+'/'+(ds.squadSize||14);
   }
   const mockBtn=document.getElementById('mock-draft-btn');
@@ -3008,7 +3008,7 @@ async function mockDraftPlayer(playerId){
   const order=mockDraftState.draftOrder||[];
   if(pick>=order.length)return;
   const currentManager=order[pick];
-  if(currentManager.trim().toLowerCase()!==myName.trim().toLowerCase()){toast('❌ '+currentManager+' ist dran!');return;}
+  if(currentManager.trim().toLowerCase()!==(myName||'').trim().toLowerCase()){toast('❌ '+currentManager+' ist dran!');return;}
   stopPickTimer();
   const draftedIds=new Set();
   Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
@@ -3039,6 +3039,32 @@ async function mockDraftPlayer(playerId){
 }
 
 function autoPickPlayer(){
+  if(mockDraftActive&&mockDraftState){
+    const draftedIds=new Set();
+    Object.values(mockDraftState.squads||{}).forEach(sq=>sq.forEach(id=>draftedIds.add(id)));
+    const mockPick=mockDraftState.draftPick||0;
+    const mockOrder=mockDraftState.draftOrder||[];
+    const mockCurrentManager=(mockOrder[mockPick]||'').trim().toLowerCase();
+    if(mockCurrentManager!==(myName||'').trim().toLowerCase())return;
+    const myMockSquad=(mockDraftState.squads||{})[myName]||[];
+    const limits=getPosLimits(mockDraftState.squadSize||14);
+    const posCounts={ST:0,LA:0,MI:0,AN:0};
+    myMockSquad.forEach(id=>{const p=PLAYERS.find(x=>x.id===id);if(p)posCounts[p.pos]++;});
+    let pick=null;
+    for(const id of drQueue){
+      if(draftedIds.has(id))continue;
+      const p=PLAYERS.find(x=>x.id===id);
+      if(!p)continue;
+      if(posCounts[p.pos]>=(limits[p.pos]?.max||99))continue;
+      pick=id;break;
+    }
+    if(!pick){
+      const available=PLAYERS.filter(p=>!draftedIds.has(p.id)&&posCounts[p.pos]<(limits[p.pos]?.max||99)).sort((a,b)=>b.rating-a.rating);
+      if(available.length)pick=available[0].id;
+    }
+    if(pick)mockDraftPlayer(pick);
+    return;
+  }
   const drafted=getDraftedIds();
   let pick=null;
   for(const id of drQueue){
@@ -3510,14 +3536,12 @@ let PLAYERS=[
   {id:20,name:'Yassine Bounou',nation:'Marokko',pos:'ST',rating:83},
   {id:21,name:'Emiliano Martínez',nation:'Argentinien',pos:'ST',rating:89},
   {id:22,name:'Gerónimo Rulli',nation:'Argentinien',pos:'ST',rating:82},
-  {id:23,name:'Gianluigi Donnarumma',nation:'Italien',pos:'ST',rating:89},
   {id:24,name:'Samir Handanović',nation:'Slowenien',pos:'ST',rating:81},
   {id:25,name:'Andriy Lunin',nation:'Ukraine',pos:'ST',rating:83},
   {id:26,name:'Wojciech Szczęsny',nation:'Polen',pos:'ST',rating:85},
   {id:27,name:'Robert Sánchez',nation:'Spanien',pos:'ST',rating:83},
   {id:28,name:'Matz Sels',nation:'Belgien',pos:'ST',rating:83},
   {id:29,name:'Odysseas Vlachodimos',nation:'Griechenland',pos:'ST',rating:82},
-  {id:30,name:'Guglielmo Vicario',nation:'Italien',pos:'ST',rating:84},
   {id:31,name:'Memo Ochoa',nation:'Mexiko',pos:'ST',rating:82},
   {id:32,name:'Luis Malagón',nation:'Mexiko',pos:'ST',rating:80},
   {id:33,name:'Badra Ali Sangaré',nation:'Elfenbeinküste',pos:'ST',rating:77},
@@ -3574,10 +3598,6 @@ let PLAYERS=[
   {id:83,name:'Alejandro Balde',nation:'Spanien',pos:'LA',rating:84},
   {id:84,name:'Pau Cubarsí',nation:'Spanien',pos:'LA',rating:85},
   {id:85,name:'Nacho Fernández',nation:'Spanien',pos:'LA',rating:82},
-  {id:86,name:'Alessandro Bastoni',nation:'Italien',pos:'LA',rating:87},
-  {id:87,name:'Giovanni Di Lorenzo',nation:'Italien',pos:'LA',rating:84},
-  {id:88,name:'Giorgio Scalvini',nation:'Italien',pos:'LA',rating:83},
-  {id:89,name:'Federico Dimarco',nation:'Italien',pos:'LA',rating:85},
   {id:90,name:'Jan Vertonghen',nation:'Belgien',pos:'LA',rating:82},
   {id:91,name:'Thomas Meunier',nation:'Belgien',pos:'LA',rating:81},
   {id:92,name:'Wout Faes',nation:'Belgien',pos:'LA',rating:80},
@@ -3710,11 +3730,6 @@ let PLAYERS=[
   {id:218,name:'Denis Zakaria',nation:'Schweiz',pos:'MI',rating:80},
   {id:219,name:'Xherdan Shaqiri',nation:'Schweiz',pos:'MI',rating:81},
   {id:220,name:'Baraka Hakizimana',nation:'Schweiz',pos:'MI',rating:77},
-  {id:221,name:'Nicolo Barella',nation:'Italien',pos:'MI',rating:88},
-  {id:222,name:'Jorginho',nation:'Italien',pos:'MI',rating:82},
-  {id:223,name:'Sandro Tonali',nation:'Italien',pos:'MI',rating:85},
-  {id:224,name:'Lorenzo Pellegrini',nation:'Italien',pos:'MI',rating:83},
-  {id:225,name:'Bryan Cristante',nation:'Italien',pos:'MI',rating:80},
   {id:226,name:'Piotr Zieliński',nation:'Polen',pos:'MI',rating:84},
   {id:227,name:'Grzegorz Krychowiak',nation:'Polen',pos:'MI',rating:79},
   {id:228,name:'Jakub Kiwior',nation:'Polen',pos:'MI',rating:79},
@@ -3802,8 +3817,6 @@ let PLAYERS=[
   {id:310,name:'Hamza Choudhury',nation:'England',pos:'MI',rating:79},
   {id:311,name:'Seko Fofana',nation:'Elfenbeinküste',pos:'MI',rating:82},
   {id:312,name:'Toni Kroos',nation:'Deutschland',pos:'MI',rating:87},
-  {id:313,name:'Antonio Candreva',nation:'Italien',pos:'MI',rating:79},
-  {id:314,name:'Giacomo Raspadori',nation:'Italien',pos:'MI',rating:81},
   {id:315,name:'Rayan Aït Nouri',nation:'Algerien',pos:'MI',rating:80},
   {id:316,name:'Pablo Barrios',nation:'Spanien',pos:'MI',rating:82},
   {id:317,name:'Mohamed Salah',nation:'Ägypten',pos:'AN',rating:90},
