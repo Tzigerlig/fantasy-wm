@@ -707,8 +707,8 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 
 /* Player Row */
 .dr-player-row{
-  display:grid;grid-template-columns:32px 1fr 28px 28px;
-  align-items:center;gap:6px;padding:8px 10px;
+  display:grid;grid-template-columns:34px 1fr 28px 26px 26px;
+  align-items:center;gap:6px;padding:6px 10px;
   border-bottom:1px solid rgba(255,255,255,0.03);
   cursor:pointer;transition:background 0.1s;
 }
@@ -2599,6 +2599,10 @@ function renderDraftView(){
   renderMySquadPanel();
   updateDraftFeed();
   startPickTimer();
+  // Preload top-50 player photos asynchronously
+  const draftedIds=getDraftedIds();
+  [...PLAYERS].filter(p=>!draftedIds.has(p.id)).sort((a,b)=>b.rating-a.rating).slice(0,50)
+    .forEach(p=>{if(playerPhotoCache[p.id]===undefined)loadPlayerPhoto(p.id);});
 }
 
 function renderDraftNotStarted(){
@@ -3138,8 +3142,8 @@ function renderDraftPool(){
       :'<div class="dr-action-btn dr-queue-btn'+(inQueue?' in-queue':'')+'" onclick="event.stopPropagation();toggleQueue('+p.id+')" title="'+(inQueue?'Aus Watchlist entfernen':'Zur Watchlist hinzufügen')+'">'+(inQueue?'★':'☆')+'</div>';
     const rowTitle=limitReached?'Positionslimit erreicht für '+POS_LABEL[p.pos]:'';
     return '<div class="dr-player-row clickable'+(isDrafted?' drafted':'')+(limitReached?' limit-reached':'')+(inQueue&&!isDrafted?' queued':'')+'" onclick="openPlayerModal('+p.id+')" title="'+rowTitle+'">'+
-      '<span style="font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;display:inline-block;background:'+(p.pos==='ST'?'#dbeafe':p.pos==='LA'?'#fef9c3':p.pos==='MI'?'#fce7f3':'#dcfce7')+';color:'+(p.pos==='ST'?'#1e40af':p.pos==='LA'?'#854d0e':p.pos==='MI'?'#9d174d':'#166534')+'">'+POS_LABEL[p.pos]+'</span>'+
-      '<div><div class="drp-name">'+p.name+getFlagBadge(p.id)+'</div><div class="drp-nation" style="display:flex;align-items:center;gap:4px">'+(getPlayerFlagUrl(p.nation)?'<img src="'+getPlayerFlagUrl(p.nation)+'" style="width:14px;border-radius:1px" onerror="this.style.display=\'none\'">':'')+p.nation+'</div></div>'+
+      playerAvatar(p,32)+
+      '<div><div class="drp-name"><span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;margin-right:4px;white-space:nowrap;background:'+(p.pos==='ST'?'#dbeafe':p.pos==='LA'?'#fef9c3':p.pos==='MI'?'#fce7f3':'#dcfce7')+';color:'+(p.pos==='ST'?'#1e40af':p.pos==='LA'?'#854d0e':p.pos==='MI'?'#9d174d':'#166534')+'">'+POS_LABEL[p.pos]+'</span>'+p.name+getFlagBadge(p.id)+'</div>'+'<div class="drp-nation" style="display:flex;align-items:center;gap:4px">'+(getPlayerFlagUrl(p.nation)?'<img src="'+getPlayerFlagUrl(p.nation)+'" style="width:12px;border-radius:1px" onerror="this.style.display=\'none\'">':'')+p.nation+'</div></div>'+
       '<div class="drp-rating">'+p.rating+'</div>'+
       draftBtn+
       queueBtn+
@@ -3337,18 +3341,34 @@ function getPlayerFlagUrl(nation){
   return code?`https://flagcdn.com/w40/${code}.png`:null;
 }
 
-const _photoCache={};
-async function loadPlayerPhoto(playerId,imgEl){
-  if(!imgEl)return;
-  const p=PLAYERS.find(x=>x.id===playerId);
-  if(!p)return;
-  if(_photoCache[playerId]!==undefined){
-    if(_photoCache[playerId]&&imgEl.parentNode)imgEl.src=_photoCache[playerId];
-    return;
-  }
-  const lsKey='fwm_wphoto_'+playerId;
+let playerPhotoCache={};
+
+async function loadPlayerPhoto(playerId){
+  if(playerPhotoCache[playerId]!==undefined)return playerPhotoCache[playerId];
+  const lsKey='fwm_photo_'+playerId;
   const cached=localStorage.getItem(lsKey);
-  if(cached){_photoCache[playerId]=cached;imgEl.src=cached;return;}
+  if(cached){playerPhotoCache[playerId]=cached;return cached;}
+
+  // API-Football (RapidAPI) — needs apiKey
+  if(apiKey){
+    try{
+      const res=await fetch(
+        'https://api-football-v1.p.rapidapi.com/v3/players?id='+playerId+'&season=2026',
+        {headers:{'X-RapidAPI-Key':apiKey,'X-RapidAPI-Host':'api-football-v1.p.rapidapi.com'}}
+      );
+      const data=await res.json();
+      const photo=data.response?.[0]?.player?.photo;
+      if(photo){
+        playerPhotoCache[playerId]=photo;
+        try{localStorage.setItem(lsKey,photo);}catch(e){}
+        return photo;
+      }
+    }catch(e){}
+  }
+
+  // Wikipedia fallback
+  const p=PLAYERS.find(x=>x.id===playerId);
+  if(!p){playerPhotoCache[playerId]=null;return null;}
   try{
     const names=[p.name+' (footballer)',p.name];
     for(const name of names){
@@ -3360,13 +3380,27 @@ async function loadPlayerPhoto(playerId,imgEl){
       if(!isPlayer)continue;
       const url=data.thumbnail?.source;
       if(!url)continue;
-      _photoCache[playerId]=url;
+      playerPhotoCache[playerId]=url;
       try{localStorage.setItem(lsKey,url);}catch(e){}
-      if(imgEl.parentNode)imgEl.src=url;
-      return;
+      return url;
     }
   }catch(e){}
-  _photoCache[playerId]=null;
+  playerPhotoCache[playerId]=null;
+  return null;
+}
+
+function playerAvatar(player,size=40){
+  const photo=playerPhotoCache[player.id];
+  const initials=player.name.split(' ').pop()[0];
+  const fallback='<div style="display:none;width:'+size+'px;height:'+size+'px;border-radius:50%;background:var(--green);color:#fff;align-items:center;justify-content:center;font-size:'+(size/3)+'px;font-weight:700;flex-shrink:0">'+initials+'</div>';
+  if(photo){
+    return '<img src="'+photo+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15);flex-shrink:0" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">'+fallback;
+  }
+  const flagUrl=getPlayerFlagUrl(player.nation);
+  if(flagUrl){
+    return '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:#132013;border:1.5px solid rgba(255,255,255,0.1);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0"><img src="'+flagUrl+'" style="width:'+(Math.round(size*0.7))+'px" onerror="this.parentNode.textContent=\''+initials+'\'"></div>';
+  }
+  return '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:'+(size/2.5)+'px;flex-shrink:0">'+initials+'</div>';
 }
 
 let PLAYERS=[
@@ -4361,6 +4395,7 @@ function renderMyTeam(){
   const el=document.getElementById('myteam-content');
   if(!el)return;
   const squad=(state.squads[myName]||[]).map(id=>PLAYERS.find(p=>p.id===id)).filter(Boolean);
+  squad.forEach(p=>{if(playerPhotoCache[p.id]===undefined)loadPlayerPhoto(p.id);});
   if(!myName||!squad.length){
     const phase=state.phase||'setup';
     const draftDate=state.draftScheduledFor?new Date(state.draftScheduledFor).toLocaleString('de',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'}):null;
@@ -4827,6 +4862,7 @@ function buildListHTML(name){
       const flag=state.playerFlags?.[p.id];
       h+='<div class="lineup-row'+(isBench?' is-bench':'')+'" onclick="openPlayerModal('+p.id+')">'
         +'<span class="pos-badge pos-'+p.pos+'">'+POS_LABEL[p.pos]+'</span>'
+        +playerAvatar(p,28)
         +(flagUrl?'<img src="'+flagUrl+'" style="width:18px;border-radius:2px" onerror="this.style.display=\'none\'">':'')
         +'<span style="flex:1;font-size:13px;font-weight:'+(isBench?400:600)+'">'+p.name
           +(isCaptain?' <span style="background:#f0c040;color:#1a1a1a;font-size:9px;padding:1px 5px;border-radius:10px;font-weight:700">C</span>':'')
@@ -4844,6 +4880,7 @@ function buildListHTML(name){
 function renderAufstellung(){
   const el=document.getElementById('aufstellung-content');if(!el)return;
   const hasTeam=myName&&state.squads&&state.squads[myName]&&state.squads[myName].length>0;
+  if(hasTeam)(state.squads[myName]||[]).forEach(id=>{if(playerPhotoCache[id]===undefined)loadPlayerPhoto(id);});
   const formation=hasTeam?getLineup(myName).formation:'4-3-3';
   const locked=isLineupLocked(myName);
 
@@ -6024,8 +6061,9 @@ function openPlayerModal(playerId){
       +(owner===myName&&isCaptain?'<button class="btn btn-gold" style="flex:1" onclick="setCaptain('+p.id+');closePlayerModal()">© Captain entfernen</button>':'')
     +'</div>';
   modal.style.display='flex';
-  // async load Wikipedia photo after modal is visible
-  loadPlayerPhoto(p.id, document.getElementById(photoId));
+  loadPlayerPhoto(p.id).then(url=>{
+    if(url){const imgEl=document.getElementById(photoId);if(imgEl)imgEl.src=url;}
+  });
 }
 
 function closePlayerModal(){
