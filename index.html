@@ -1330,11 +1330,6 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
   <!-- RANGLISTE -->
   <div class="view" id="view-rangliste">
     <div class="stats-bar" id="league-stats"></div>
-    <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchRanglisteTab('gesamt',this)">🏅 Gesamt</button>
-      <button class="tab-btn" onclick="switchRanglisteTab('spieltage',this)">📅 Spieltage</button>
-      <button class="tab-btn" onclick="switchRanglisteTab('spieler',this)">⭐ Spieler</button>
-    </div>
     <div id="rangliste-content"></div>
   </div>
 
@@ -1445,7 +1440,7 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 // ── SUPABASE DB ──────────────────────────────────────────────────
 function getDefaultState(){
   return{phase:'setup',managers:[],squads:{},draftOrder:[],draftPick:0,draftType:'snake',
-    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},captains:{},playerFlags:{},waiverLog:[],
+    squadSize:14,tradeHistory:[],tradeOffers:[],matchdays:[],lineups:{},players:{},captains:{},playerFlags:{},playerStatus:{},waiverLog:[],
     scoring:{goalAN:8,goalMI:6,goalLA:10,assist:4,csGK:8,csLA:4,yellow:-1,red:-3,motm:3,pens:5}};
 }
 
@@ -1650,6 +1645,7 @@ async function enterLiga(ligaId,ligaName,ligaCode,ligaData,isAdmin){
   if(!state.lineups)state.lineups={};
   if(!state.captains)state.captains={};
   if(!state.playerFlags)state.playerFlags={};
+  if(!state.playerStatus)state.playerStatus={};
   if(!state.managers)state.managers=[];
   if(!state.squadSize)state.squadSize=14;
   applyCustomPlayers(); // use custom player list if set by admin
@@ -1799,17 +1795,104 @@ function getFlagBadge(playerId){
 
 async function setPlayerFlag(playerId,flag){
   if(!state.playerFlags)state.playerFlags={};
+  if(!state.playerStatus)state.playerStatus={};
   if(flag===null||state.playerFlags[playerId]===flag){
     delete state.playerFlags[playerId];
+    delete state.playerStatus[playerId];
     toast('Flag entfernt');
   } else {
-    state.playerFlags[playerId]=flag;
+    state.playerFlags[playerId]=flag==='doubt'?'injured':flag; // playerFlags compat
+    state.playerStatus[playerId]={status:flag,reason:''};
     const p=PLAYERS.find(x=>x.id===playerId);
-    toast((flag==='injured'?'🚑 ':' 🚫 ')+(p?.name||'Spieler')+' als '+(flag==='injured'?'Verletzt':'Gesperrt')+' markiert');
+    const labels={injured:'🚑 Verletzt',suspended:'🚫 Gesperrt',doubt:'⚠️ Fraglich'};
+    toast((labels[flag]||flag)+': '+(p?.name||'Spieler'));
   }
   await saveToDB();
   renderDraftPool();
   renderMyTeam();
+}
+
+async function setPlayerStatus(playerId,status,reason){
+  if(!state.playerStatus)state.playerStatus={};
+  if(!state.playerFlags)state.playerFlags={};
+  if(status===null||status==='ok'){
+    delete state.playerStatus[playerId];
+    delete state.playerFlags[playerId];
+    toast('Status entfernt');
+  } else {
+    state.playerStatus[playerId]={status,reason:reason||''};
+    state.playerFlags[playerId]=status==='doubt'?'injured':status;
+    const p=PLAYERS.find(x=>x.id===playerId);
+    const labels={injured:'🚑 Verletzt',suspended:'🚫 Gesperrt',doubt:'⚠️ Fraglich'};
+    toast((labels[status]||status)+': '+(p?.name||'Spieler')+(reason?' — '+reason:''));
+  }
+  await saveToDB();
+  renderDraftPool();
+  renderMyTeam();
+  admRenderFlagList();
+}
+
+function getPlayerStatus(playerId){
+  return state.playerStatus?.[playerId]||null;
+}
+
+function getPlayerStatusBadge(playerId){
+  let s=getPlayerStatus(playerId);
+  if(!s){
+    const flag=(state.playerFlags||{})[playerId];
+    if(!flag)return'';
+    s={status:flag,reason:''};
+  }
+  const configs={
+    injured:{bg:'#fef2f2',color:'#c0392b',icon:'🚑',label:'Verletzt'},
+    suspended:{bg:'#fef9c3',color:'#854d0e',icon:'🚫',label:'Gesperrt'},
+    doubt:{bg:'#fffbeb',color:'#92400e',icon:'⚠️',label:'Fraglich'}
+  };
+  const c=configs[s.status]||configs.doubt;
+  return '<span style="background:'+c.bg+';color:'+c.color+';font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;white-space:nowrap">'+c.icon+' '+c.label+'</span>';
+}
+
+function matchApiPlayer(apiName){
+  const norm=n=>n.toLowerCase().replace(/[^a-z]/g,'');
+  const target=norm(apiName);
+  return PLAYERS.find(p=>{
+    const pn=norm(p.name);
+    if(pn===target)return true;
+    const parts=p.name.toLowerCase().split(' ');
+    return parts.some(part=>target.includes(norm(part))&&norm(part).length>3);
+  })||null;
+}
+
+async function loadPlayerStatusFromAPI(){
+  if(!apiKey)return;
+  try{
+    const res=await fetch(
+      'https://api-football-v1.p.rapidapi.com/v3/injuries?league=1&season=2026',
+      {headers:{'X-RapidAPI-Key':apiKey,'X-RapidAPI-Host':'api-football-v1.p.rapidapi.com'}}
+    );
+    const data=await res.json();
+    if(!data.response)return;
+    if(!state.playerStatus)state.playerStatus={};
+    const newStatus={};
+    data.response.forEach(entry=>{
+      const ourPlayer=matchApiPlayer(entry.player.name);
+      if(ourPlayer){
+        newStatus[ourPlayer.id]={
+          status:entry.player.reason?.toLowerCase().includes('suspen')?'suspended':'injured',
+          reason:entry.player.reason||''
+        };
+      }
+    });
+    Object.assign(state.playerStatus,newStatus);
+    // sync to playerFlags for backward compat
+    Object.entries(newStatus).forEach(([id,s])=>{
+      if(!state.playerFlags)state.playerFlags={};
+      state.playerFlags[id]=s.status==='doubt'?'injured':s.status;
+    });
+    await saveToDB();
+    toast('Verletzungsstatus aktualisiert: '+Object.keys(newStatus).length+' Spieler');
+    renderDraftPool();
+  }catch(e){toast('Fehler beim Laden: '+e.message);}
 }
 
 function getColor(i){
@@ -3143,7 +3226,7 @@ function renderDraftPool(){
     const rowTitle=limitReached?'Positionslimit erreicht für '+POS_LABEL[p.pos]:'';
     return '<div class="dr-player-row clickable'+(isDrafted?' drafted':'')+(limitReached?' limit-reached':'')+(inQueue&&!isDrafted?' queued':'')+'" onclick="openPlayerModal('+p.id+')" title="'+rowTitle+'">'+
       playerAvatar(p,32)+
-      '<div><div class="drp-name"><span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;margin-right:4px;white-space:nowrap;background:'+(p.pos==='ST'?'#dbeafe':p.pos==='LA'?'#fef9c3':p.pos==='MI'?'#fce7f3':'#dcfce7')+';color:'+(p.pos==='ST'?'#1e40af':p.pos==='LA'?'#854d0e':p.pos==='MI'?'#9d174d':'#166534')+'">'+POS_LABEL[p.pos]+'</span>'+p.name+getFlagBadge(p.id)+'</div>'+'<div class="drp-nation" style="display:flex;align-items:center;gap:4px">'+(getPlayerFlagUrl(p.nation)?'<img src="'+getPlayerFlagUrl(p.nation)+'" style="width:12px;border-radius:1px" onerror="this.style.display=\'none\'">':'')+p.nation+'</div></div>'+
+      '<div><div class="drp-name"><span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;margin-right:4px;white-space:nowrap;background:'+(p.pos==='ST'?'#dbeafe':p.pos==='LA'?'#fef9c3':p.pos==='MI'?'#fce7f3':'#dcfce7')+';color:'+(p.pos==='ST'?'#1e40af':p.pos==='LA'?'#854d0e':p.pos==='MI'?'#9d174d':'#166534')+'">'+POS_LABEL[p.pos]+'</span>'+p.name+'</div>'+'<div class="drp-nation" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'+(getPlayerFlagUrl(p.nation)?'<img src="'+getPlayerFlagUrl(p.nation)+'" style="width:12px;border-radius:1px" onerror="this.style.display=\'none\'">':'')+p.nation+getPlayerStatusBadge(p.id)+'</div></div>'+
       '<div class="drp-rating">'+p.rating+'</div>'+
       draftBtn+
       queueBtn+
@@ -4054,9 +4137,12 @@ function renderAdminContent(){
       +['setup','draft','active'].map(ph=>'<button class="btn-admin-action" style="'+(phase===ph?'border-color:#f0c040;color:#f0c040':'')+'" onclick="admSetPhase(\''+ph+'\')">'+(ph==='setup'?'⚙️ Setup':ph==='draft'?'🎯 Draft':'✅ Aktiv')+'</button>').join('')
       +'</div></div>'
       +'<div class="admin-card"><h3>🚑 Spieler-Status</h3>'
-      +'<p style="font-size:12px;color:#9de0b8;margin-bottom:10px">Verletzte oder gesperrte Spieler markieren — erscheint als Badge im Draft und Kader.</p>'
-      +'<input id="adm-flag-search" class="admin-input" placeholder="Spieler suchen..." oninput="admRenderFlagList()" style="margin-bottom:8px;width:100%">'
-      +'<div id="adm-flag-list" style="max-height:220px;overflow-y:auto"></div>'
+      +'<p style="font-size:12px;color:#9de0b8;margin-bottom:10px">Verletzte (🚑), gesperrte (🚫) oder fragliche (⚠️) Spieler — Badge erscheint im Draft und Kader.</p>'
+      +'<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
+      +'<input id="adm-flag-search" class="admin-input" placeholder="Spieler suchen..." oninput="admRenderFlagList()" style="flex:1;min-width:140px">'
+      +(apiKey?'<button class="btn-admin-action" style="font-size:11px;padding:6px 10px;white-space:nowrap" onclick="loadPlayerStatusFromAPI()">🔄 Via API laden</button>':'')
+      +'</div>'
+      +'<div id="adm-flag-list" style="max-height:260px;overflow-y:auto"></div>'
       +'</div>';
 
   } else if(currentAdminTab==='draft'){
@@ -4314,22 +4400,33 @@ function admRenderFlagList(){
   const el=document.getElementById('adm-flag-list');if(!el)return;
   const search=(document.getElementById('adm-flag-search')?.value||'').toLowerCase();
   const flags=state.playerFlags||{};
+  const statuses=state.playerStatus||{};
   let players=PLAYERS.filter(p=>!search||p.name.toLowerCase().includes(search)||p.nation.toLowerCase().includes(search));
-  if(!search)players=players.filter(p=>flags[p.id]||true).slice(0,30);
+  if(!search)players=players.slice(0,30);
   else players=players.slice(0,20);
-  // Flagged players always at top
   players.sort((a,b)=>(flags[b.id]?1:0)-(flags[a.id]?1:0));
   el.innerHTML=players.map(p=>{
     const flag=flags[p.id]||null;
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
-      +'<span style="font-size:9px;padding:2px 5px;border-radius:4px;background:'+(p.pos==='ST'?'#1e3a8a':p.pos==='LA'?'#78350f':p.pos==='MI'?'#4a044e':'#14532d')+';color:#fff">'+POS_LABEL[p.pos]+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div>'
-      +'<div style="font-size:10px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:3px">'+(getPlayerFlagUrl(p.nation)?'<img src="'+getPlayerFlagUrl(p.nation)+'" style="width:13px;border-radius:1px" onerror="this.style.display=\'none\'">':'')+p.nation+'</div></div>'
-      +(flag?'<span style="font-size:10px;color:'+(flag==='injured'?'#f87171':'#fbbf24')+'">'+( flag==='injured'?'🚑 Verletzt':'🚫 Gesperrt')+'</span>':'')
-      +'<button onclick="setPlayerFlag('+p.id+',\'injured\')" style="background:'+(flag==='injured'?'#dc2626':'rgba(220,38,38,0.15)')+';border:1px solid #dc2626;color:'+(flag==='injured'?'#fff':'#f87171')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Verletzt">🚑</button>'
-      +'<button onclick="setPlayerFlag('+p.id+',\'suspended\')" style="background:'+(flag==='suspended'?'#d97706':'rgba(217,119,6,0.15)')+';border:1px solid #d97706;color:'+(flag==='suspended'?'#fff':'#fbbf24')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Gesperrt">🚫</button>'
-      +(flag?'<button onclick="setPlayerFlag('+p.id+',null)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer">✕</button>':'')
-      +'</div>';
+    const st=statuses[p.id]||null;
+    const stLabel=st?({'injured':'🚑 Verletzt','suspended':'🚫 Gesperrt','doubt':'⚠️ Fraglich'}[st.status]||''):null;
+    const isInjured=flag==='injured'&&st?.status!=='doubt';
+    const isSusp=flag==='suspended';
+    const isDoubt=st?.status==='doubt';
+    const posBg=p.pos==='ST'?'#1e3a8a':p.pos==='LA'?'#78350f':p.pos==='MI'?'#4a044e':'#14532d';
+    let h='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05)">';
+    h+='<span style="font-size:9px;padding:2px 5px;border-radius:4px;background:'+posBg+';color:#fff">'+POS_LABEL[p.pos]+'</span>';
+    h+='<div style="flex:1;min-width:100px">';
+    h+='<div style="font-size:12px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div>';
+    h+='<div style="font-size:10px;color:rgba(255,255,255,0.4)">'+p.nation;
+    if(stLabel)h+=' · <span style="color:'+(isSusp?'#fbbf24':'#f87171')+'">'+stLabel+'</span>';
+    if(st?.reason)h+=' — '+st.reason;
+    h+='</div></div>';
+    h+='<button onclick="setPlayerStatus('+p.id+',\'injured\',\'\')" style="background:'+(isInjured?'#dc2626':'rgba(220,38,38,0.15)')+';border:1px solid #dc2626;color:'+(isInjured?'#fff':'#f87171')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Verletzt">🚑</button>';
+    h+='<button onclick="setPlayerStatus('+p.id+',\'suspended\',\'\')" style="background:'+(isSusp?'#d97706':'rgba(217,119,6,0.15)')+';border:1px solid #d97706;color:'+(isSusp?'#fff':'#fbbf24')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Gesperrt">🚫</button>';
+    h+='<button onclick="setPlayerStatus('+p.id+',\'doubt\',\'\')" style="background:'+(isDoubt?'#d97706':'rgba(217,119,6,0.08)')+';border:1px solid rgba(217,119,6,0.4);color:'+(isDoubt?'#fff':'#fbbf24')+';border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Fraglich">⚠️</button>';
+    if(flag||st)h+='<button onclick="setPlayerStatus('+p.id+',null,\'\')" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);border-radius:4px;padding:3px 7px;font-size:10px;cursor:pointer" title="Entfernen">✕</button>';
+    h+='</div>';
+    return h;
   }).join('');
 }
 
@@ -4964,7 +5061,16 @@ function switchRanglisteTab(tab,btn){
   currentRanglisteTab=tab;
   document.querySelectorAll('#view-rangliste .tab-btn').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  renderRanglisteContent();
+  if(tab==='gesamt')renderRanglisteGesamt();
+  else if(tab==='spieltage'){
+    const el=document.getElementById('rangliste-content-inner');
+    if(el)renderMatchdayRanking(el);
+  }
+  else if(tab==='h2h')renderH2HTab();
+  else if(tab==='spieler'){
+    const el=document.getElementById('rangliste-content-inner');
+    if(el)renderPlayerRanking(el);
+  }
 }
 
 function renderRangliste(){
@@ -4976,15 +5082,87 @@ function renderRangliste(){
     statsEl.innerHTML=[['Manager',managers.length],['Spieltage',state.matchdays?.length||0],['Spieler',managers.reduce((s,m)=>s+(state.squads[m]?.length||0),0)],['Leader',leader]].map(([l,v])=>
       `<div class="stat-box"><div class="stat-val" style="font-size:${typeof v==='string'&&v.length>4?'18px':'28px'}">${v}</div><div class="stat-lbl">${l}</div></div>`).join('');
   }
-  renderRanglisteContent();
-}
-
-function renderRanglisteContent(){
   const el=document.getElementById('rangliste-content');
   if(!el)return;
-  if(currentRanglisteTab==='gesamt')renderGesamtRanking(el);
-  else if(currentRanglisteTab==='spieltage')renderMatchdayRanking(el);
-  else renderPlayerRanking(el);
+  let html='<div class="tab-bar" style="margin-bottom:14px">';
+  html+='<button class="tab-btn'+(currentRanglisteTab==='gesamt'?' active':'')+'" onclick="switchRanglisteTab(\'gesamt\',this)">🏅 Gesamt</button>';
+  html+='<button class="tab-btn'+(currentRanglisteTab==='spieltage'?' active':'')+'" onclick="switchRanglisteTab(\'spieltage\',this)">📅 Spieltage</button>';
+  if(state.h2h?.enabled)html+='<button class="tab-btn'+(currentRanglisteTab==='h2h'?' active':'')+'" onclick="switchRanglisteTab(\'h2h\',this)">⚔️ H2H</button>';
+  html+='<button class="tab-btn'+(currentRanglisteTab==='spieler'?' active':'')+'" onclick="switchRanglisteTab(\'spieler\',this)">⭐ Spieler</button>';
+  html+='</div>';
+  html+='<div id="rangliste-content-inner"></div>';
+  el.innerHTML=html;
+  renderRanglisteGesamt();
+}
+
+function renderRanglisteGesamt(){
+  const el=document.getElementById('rangliste-content-inner');if(!el)return;
+  const managers=[...(state.managers||[])];
+  const sorted=managers.sort((a,b)=>getManagerPoints(b)-getManagerPoints(a));
+  const leaderPts=getManagerPoints(sorted[0])||1;
+  let html='';
+  sorted.forEach((m,i)=>{
+    const pts=getManagerPoints(m);
+    const pct=Math.round(pts/leaderPts*100);
+    const isMe=m===myName;
+    const diff=pts-leaderPts;
+    const form=(state.matchdays||[]).slice(-5).map(md=>{
+      return (state.squads[m]||[]).reduce((sum,id)=>{
+        const e=md.entries?.find(e=>e.playerId===id);
+        return sum+(e?e.pts:0);
+      },0);
+    });
+    const maxForm=Math.max(...form,1);
+    html+='<div style="background:'+(isMe?'linear-gradient(135deg,#f0fdf4,#fff)':'var(--card)')+
+      ';border:1px solid '+(isMe?'var(--green3)':'var(--border)')+
+      ';border-radius:var(--radius);padding:14px;margin-bottom:8px;box-shadow:var(--shadow);transition:all 0.15s" '+
+      'onclick="toggleManagerDetails(\''+m.replace(/'/g,"\\'")+'\')">';
+    html+='<div style="display:flex;align-items:center;gap:10px">';
+    html+='<div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:'+(i===0?'#d4a017':i===1?'#9ca3af':i===2?'#b45309':'var(--muted)')+';width:32px;text-align:center">'+(i+1)+'</div>';
+    html+='<div class="avatar" style="width:36px;height:36px;background:'+getColor(i)+'20;color:'+getColor(i)+'">'+getInitials(m)+'</div>';
+    html+='<div style="flex:1"><div style="font-weight:700;font-size:15px">'+m+(isMe?'<span style="font-size:10px;color:var(--green3);margin-left:6px">Du</span>':'')+'</div>';
+    const captainId=state.captains?.[m];
+    const captain=captainId?PLAYERS.find(p=>p.id===captainId):null;
+    if(captain)html+='<div style="font-size:11px;color:#854d0e">⭐ '+captain.name.split(' ').pop()+'</div>';
+    html+='</div>';
+    html+='<div style="text-align:right"><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:var(--green2)">'+pts+'</div>';
+    if(i>0)html+='<div style="font-size:11px;color:var(--muted)">'+diff+' Pkt</div>';
+    html+='</div></div>';
+    html+='<div style="height:3px;background:var(--border);border-radius:2px;margin:8px 0;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+getColor(i)+','+getColor(i)+'aa);border-radius:2px;transition:width 0.5s ease"></div></div>';
+    if(form.length){
+      html+='<div style="display:flex;align-items:flex-end;gap:3px;height:24px;margin-top:4px">';
+      form.forEach(f=>{
+        const fh=Math.max(4,Math.round(f/maxForm*20));
+        html+='<div style="flex:1;height:'+fh+'px;background:'+(f>0?'var(--green3)':'#fca5a5')+';border-radius:2px;opacity:0.7"></div>';
+      });
+      html+='</div><div style="font-size:9px;color:var(--muted);margin-top:2px">Form (letzte '+form.length+' Spieltage)</div>';
+    }
+    html+='</div>';
+  });
+  // Top Scorer section
+  html+='<div class="card" style="margin-top:16px"><div class="card-title">⭐ Top Scorer</div>';
+  const scorers=PLAYERS.map(p=>({player:p,pts:(state.matchdays||[]).reduce((sum,md)=>{const e=md.entries?.find(e=>e.playerId===p.id);return sum+(e?e.pts:0);},0)}))
+    .filter(x=>x.pts>0).sort((a,b)=>b.pts-a.pts).slice(0,5);
+  if(!scorers.length){
+    html+='<div style="color:var(--muted);font-size:13px">Noch keine Punkte vergeben</div>';
+  } else {
+    scorers.forEach((x,i)=>{
+      const owner=Object.entries(state.squads||{}).find(([,sq])=>sq.includes(x.player.id))?.[0];
+      html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">';
+      html+='<div style="font-family:Bebas Neue,sans-serif;font-size:16px;color:var(--muted);width:20px">'+(i+1)+'</div>';
+      html+=playerAvatar(x.player,32);
+      html+='<div style="flex:1"><div style="font-weight:600;font-size:13px">'+x.player.name+'</div><div style="font-size:11px;color:var(--muted)">'+(owner||'Frei')+'</div></div>';
+      html+='<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--green2)">'+x.pts+'</div>';
+      html+='</div>';
+    });
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function renderH2HTab(){
+  const el=document.getElementById('rangliste-content-inner');if(!el)return;
+  el.innerHTML='<div class="empty-state"><div class="empty-icon">⚔️</div><div class="empty-title">H2H noch nicht aktiv</div><p>Head-to-Head Modus kann vom Admin aktiviert werden</p></div>';
 }
 
 function renderGesamtRanking(el){
