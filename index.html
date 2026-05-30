@@ -3692,13 +3692,13 @@ function renderAdminContent(){
         <button class="btn-admin-action" style="width:100%;margin-bottom:6px;background:#166534;border-color:#22c55e;color:#dcfce7" onclick="syncPlatformPoints(true).then(()=>{const el=document.getElementById('platform-sync-status-admin');if(el){const src=document.getElementById('platform-sync-status');if(src)el.innerHTML=src.innerHTML;}})">🤖 Auto-Sync (alle Ligas)</button>
         <button class="btn-admin-action" style="width:100%" onclick="closeAdmin();showView('punkte',null)">⚽ Punkte manuell eingeben</button>
       </div>
-      <div class="admin-card"><h3>🔑 API-Football Key</h3>
-        <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Für automatische Live-Spielerdaten nach WM-Spielen.</p>
+      <div class="admin-card"><h3>🔑 API-KEY <span style="font-size:11px;background:rgba(74,222,128,0.15);color:#4ade80;border-radius:4px;padding:2px 6px;font-weight:500;letter-spacing:0.5px">GLOBAL</span></h3>
+        <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Einmal eingeben — gilt für <strong>alle Ligas und alle Nutzer</strong> der Platform.</p>
         <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input class="admin-input" type="password" id="admin-api-key" placeholder="X-RapidAPI-Key..." style="flex:1;margin:0" value="${apiKey||''}">
-          <button class="btn-admin-action" onclick="admSaveApiKey()">💾 Speichern</button>
+          <input type="password" id="adm-fdo-key" class="admin-input" placeholder="football-data.org Token..." style="flex:1;margin:0" value="${fdoKey||''}">
+          <button class="btn-admin-action" onclick="admSaveFdoKey()">💾 Speichern</button>
         </div>
-        <div id="admin-api-status" style="font-size:12px;color:${apiKey?'#4ade80':'rgba(255,255,255,0.3)'}">${apiKey?'✓ Key gespeichert':'Kein Key gesetzt'}</div>
+        <div id="adm-fdo-key-status" style="font-size:12px;color:#9de0b8">${fdoKey?'<span style="color:#4ade80">✓ Global aktiv — alle Nutzer können Live-Scores sehen</span>':'Kein Key gesetzt'}</div>
       </div>
       <div class="admin-card"><h3>⭐ Punktesystem</h3>
         <div class="adm-grid-2">
@@ -3708,22 +3708,6 @@ function renderAdminContent(){
           </div>`).join('')}
         </div>
         <button class="btn-admin-action" onclick="admSaveScoring()">💾 Speichern</button>
-      </div>
-      <div class="admin-card"><h3>⚽ football-data.org API Key <span style="font-size:11px;background:rgba(74,222,128,0.15);color:#4ade80;border-radius:4px;padding:2px 6px;font-weight:500;letter-spacing:0.5px">GLOBAL</span></h3>
-        <p style="font-size:13px;color:#9de0b8;margin-bottom:10px">Einmal hier speichern — gilt für <strong>alle Ligas und alle Nutzer</strong> der Platform. Kostenloser Account bei football-data.org nötig.</p>
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input type="password" id="adm-fdo-key" class="admin-input" placeholder="Dein football-data.org Token..." style="flex:1;margin:0" value="${fdoKey||''}">
-          <button class="btn-admin-action" onclick="admSaveFdoKey()">💾 Speichern</button>
-        </div>
-        <div id="adm-fdo-key-status" style="font-size:12px;color:#9de0b8">${fdoKey?'<span style="color:#4ade80">✓ Global aktiv — alle Nutzer können Live-Scores sehen</span>':'Kein Key — <a href="https://www.football-data.org/client/register" target="_blank" style="color:#f0c040">Hier kostenlos registrieren →</a>'}</div>
-      </div>
-      <div class="admin-card"><h3>🔑 API-Football Key</h3>
-        <p style="font-size:12px;color:#9de0b8;margin-bottom:8px">Für Live-Spielerdaten nach WM-Spielen.</p>
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input type="password" id="adm-api-key" class="admin-input" placeholder="X-RapidAPI-Key..." style="flex:1;margin:0" value="${apiKey||''}">
-          <button class="btn-admin-action" onclick="admSaveApiKey()">💾 Speichern</button>
-        </div>
-        <div id="adm-api-key-status" style="font-size:12px;color:#9de0b8">${apiKey?'<span style="color:#4ade80">✓ Key aktiv</span>':''}</div>
       </div>
       <div class="admin-card"><h3>👤 Spieler-Accounts (${Object.keys(state.players||{}).length})</h3>
         ${Object.keys(state.players||{}).length?Object.entries(state.players||{}).map(([name,data])=>`
