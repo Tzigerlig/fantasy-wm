@@ -563,7 +563,7 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 .name-box p{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
 .name-box .emoji{font-size:48px;margin-bottom:12px;}
 .name-box label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;text-align:left;}
-.name-box input[type="password"]{letter-spacing:4px;font-size:18px;text-align:center;}
+.auth-logo{font-size:52px;text-align:center;margin-bottom:12px;}
 
 /* ── TOAST ────────────────────────────────────────────────────── */
 .toast{
@@ -957,17 +957,47 @@ input:focus,select:focus{border-color:var(--green3);box-shadow:0 0 0 3px rgba(26
 
 <div id="name-entry" class="name-entry" style="display:none">
   <div class="name-box">
-    <div class="emoji">🏆</div>
-    <h2>Neuer Spieler</h2>
-    <p>Erstelle deinen Account für die Liga</p>
-    <label>Dein Name</label>
-    <input type="text" id="name-input" placeholder="z.B. Thomas" maxlength="20" style="margin-bottom:8px">
-    <label>PIN wählen (4 Ziffern)</label>
-    <input type="password" id="pin-input" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:8px">
-    <label>PIN bestätigen</label>
-    <input type="password" id="pin-confirm" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')registerPlayer()">
-    <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="registerPlayer()">Registrieren →</button>
-    <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="renderNameEntry('login')">Schon registriert? Einloggen</p>
+    <div id="auth-invite-banner" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:16px;text-align:center">
+      <div style="font-size:13px;font-weight:700;color:#166534">🏆 Du wurdest eingeladen!</div>
+      <div id="auth-invite-code" style="font-size:12px;color:#6b7280;margin-top:2px"></div>
+    </div>
+    <!-- REGISTRIEREN -->
+    <div id="register-form">
+      <div class="auth-logo">🏆</div>
+      <h2>Konto erstellen</h2>
+      <p>Für Fantasy WM 2026</p>
+      <label>Dein Name (Anzeigename)</label>
+      <input type="text" id="reg-name" placeholder="z.B. Thomas" maxlength="20" style="margin-bottom:8px">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="thomas@beispiel.ch" style="margin-bottom:8px">
+      <label>Passwort</label>
+      <input type="password" id="reg-password" placeholder="Min. 6 Zeichen" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')registerWithEmail()">
+      <button class="btn btn-primary" id="reg-btn" style="width:100%;padding:12px;font-size:15px" onclick="registerWithEmail()">Registrieren →</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="showLoginForm()">Schon registriert? Einloggen</p>
+    </div>
+    <!-- LOGIN -->
+    <div id="login-form" style="display:none">
+      <div class="auth-logo">👋</div>
+      <h2>Willkommen zurück!</h2>
+      <p>Einloggen mit deiner Email</p>
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="deine@email.ch" style="margin-bottom:8px">
+      <label>Passwort</label>
+      <input type="password" id="login-password" placeholder="••••••" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')loginWithEmail()">
+      <button class="btn btn-primary" id="login-btn" style="width:100%;padding:12px;font-size:15px" onclick="loginWithEmail()">Einloggen →</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px;cursor:pointer" onclick="showForgotPassword()">Passwort vergessen?</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:4px;cursor:pointer" onclick="showRegisterForm()">Neu hier? Registrieren</p>
+    </div>
+    <!-- PASSWORT VERGESSEN -->
+    <div id="forgot-form" style="display:none">
+      <div class="auth-logo">🔑</div>
+      <h2>Passwort zurücksetzen</h2>
+      <p>Wir senden dir einen Reset-Link</p>
+      <label>Deine Email</label>
+      <input type="email" id="forgot-email" placeholder="deine@email.ch" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')resetPassword()">
+      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="resetPassword()">Link senden →</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="showLoginForm()">← Zurück</p>
+    </div>
   </div>
 </div>
 
@@ -1771,9 +1801,12 @@ function showLigaCodeModal(ligaName,ligaCode){
 }
 
 function logoutUser(){
-  if(!confirm('Abmelden?'))return;
-  localStorage.removeItem('fwm_myname');localStorage.removeItem('fwm_pin');
-  localStorage.removeItem('fwm_is_admin');localStorage.removeItem('fwm_last_liga');
+  if(!confirm('Wirklich abmelden?'))return;
+  db.auth.signOut();
+  localStorage.removeItem('fwm_myname');
+  localStorage.removeItem('fwm_pin');
+  localStorage.removeItem('fwm_is_admin');
+  localStorage.removeItem('fwm_last_liga');
   location.reload();
 }
 
@@ -2117,150 +2150,79 @@ function sendNotif(title,body,category){
   }catch(e){}
 }
 
-async function setMyName(){
-  try{
-    const val=(document.getElementById('name-input')||{}).value||'';
-    const name=val.trim();
-    if(!name){toast('Bitte Namen eingeben!');return;}
-    myName=name;
-    localStorage.setItem('fwm_myname',myName);
-
-    // Name-Entry verstecken
-    const nameEntry=document.getElementById('name-entry');
-    if(nameEntry)nameEntry.style.display='none';
-
-    // App anzeigen
-    const app=document.getElementById('app');
-    if(app){app.style.display='flex';app.style.flexDirection='column';}
-
-    // User display setzen
-    const ud=document.getElementById('user-display');
-    if(ud)ud.textContent='👤 '+myName;
-
-    // State updaten
-    if(!state.managers.includes(myName)){
-      state.managers.push(myName);
-      if(!state.squads[myName])state.squads[myName]=[];
-      await saveToDB();
-    }
-
-    // Share link setzen
-    const sl=document.getElementById('share-link');
-    if(sl)sl.value=window.location.origin+window.location.pathname;
-
-    // Alles rendern
-    renderSetup();
-    updatePhaseBadge();
-    renderCountdown();
-    setInterval(renderCountdown,1000);
-    startAutoSync();
-
-    toast('Willkommen, '+myName+'! 👋');
-    requestNotificationPermission();
-
-  }catch(e){
-    console.error('setMyName error:',e);
-    // Fallback: App trotzdem anzeigen
-    const app=document.getElementById('app');
-    if(app){app.style.display='flex';app.style.flexDirection='column';}
-    const nameEntry=document.getElementById('name-entry');
-    if(nameEntry)nameEntry.style.display='none';
+async function registerWithEmail(){
+  const name=(document.getElementById('reg-name')?.value||'').trim();
+  const email=(document.getElementById('reg-email')?.value||'').trim();
+  const password=document.getElementById('reg-password')?.value||'';
+  if(!name){toast('Bitte Namen eingeben!');return;}
+  if(!email||!email.includes('@')){toast('Bitte gültige Email eingeben!');return;}
+  if(!password||password.length<6){toast('Passwort min. 6 Zeichen!');return;}
+  const btn=document.getElementById('reg-btn');
+  if(btn){btn.textContent='Lädt...';btn.disabled=true;}
+  const{data,error}=await db.auth.signUp({email,password,options:{data:{display_name:name}}});
+  if(error){
+    toast('❌ '+(error.message==='User already registered'?'Email bereits registriert — bitte einloggen':error.message));
+    if(btn){btn.textContent='Registrieren →';btn.disabled=false;}
+    return;
   }
+  myName=name;
+  localStorage.setItem('fwm_myname',name);
+  toast('✅ Willkommen, '+name+'!');
+  completeLogin();
+  const isFirstLogin=!localStorage.getItem('fwm_onboarded');
+  if(isFirstLogin)setTimeout(showOnboarding,800);
+}
+
+async function loginWithEmail(){
+  const email=(document.getElementById('login-email')?.value||'').trim();
+  const password=document.getElementById('login-password')?.value||'';
+  if(!email||!password){toast('Bitte alle Felder ausfüllen!');return;}
+  const btn=document.getElementById('login-btn');
+  if(btn){btn.textContent='Lädt...';btn.disabled=true;}
+  const{data,error}=await db.auth.signInWithPassword({email,password});
+  if(error){
+    toast('❌ '+(error.message==='Invalid login credentials'?'Falsche Email oder Passwort':error.message));
+    if(btn){btn.textContent='Einloggen →';btn.disabled=false;}
+    return;
+  }
+  const name=data.user?.user_metadata?.display_name||email.split('@')[0];
+  myName=name;
+  localStorage.setItem('fwm_myname',name);
+  toast('Willkommen zurück, '+name+'! 👋');
+  completeLogin();
+}
+
+async function resetPassword(){
+  const email=(document.getElementById('forgot-email')?.value||'').trim();
+  if(!email){toast('Bitte Email eingeben!');return;}
+  const{error}=await db.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/fantasy-wm/'});
+  if(error){toast('❌ '+error.message);return;}
+  toast('✅ Reset-Link wurde an '+email+' gesendet!');
+  showLoginForm();
+}
+
+function showLoginForm(){
+  document.getElementById('register-form').style.display='none';
+  document.getElementById('login-form').style.display='block';
+  document.getElementById('forgot-form').style.display='none';
+}
+
+function showRegisterForm(){
+  document.getElementById('register-form').style.display='block';
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('forgot-form').style.display='none';
+}
+
+function showForgotPassword(){
+  document.getElementById('register-form').style.display='none';
+  document.getElementById('login-form').style.display='none';
+  document.getElementById('forgot-form').style.display='block';
 }
 
 function getDeviceId(){
   let id=localStorage.getItem('fwm_device_id');
   if(!id){id=Math.random().toString(36).substring(2);localStorage.setItem('fwm_device_id',id);}
   return id;
-}
-
-function renderNameEntry(mode){
-  const box=document.querySelector('.name-box');
-  if(!box)return;
-  const inviteBanner=_pendingInviteCode
-    ?`<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:16px;text-align:center">
-        <div style="font-size:13px;font-weight:700;color:#166534">🏆 Du wurdest eingeladen!</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:2px">Liga-Code: <strong>${_pendingInviteCode}</strong></div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px">${mode==='login'?'Einloggen':'Registrieren'} um der Liga beizutreten</div>
-      </div>`
-    :'';
-  if(mode==='login'){
-    box.innerHTML=inviteBanner+`
-      <div class="emoji">👋</div>
-      <h2>Willkommen zurück!</h2>
-      <p>Gib deinen Namen und PIN ein</p>
-      <label>Dein Name</label>
-      <input type="text" id="login-name-input" placeholder="z.B. Thomas" style="margin-bottom:8px">
-      <label>PIN (4 Ziffern)</label>
-      <input type="password" id="login-pin-input" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')loginPlayer()">
-      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="loginPlayer()">Einloggen →</button>
-      <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="renderNameEntry('register')">Neu hier? Registrieren</p>
-    `;
-  } else {
-    box.innerHTML=inviteBanner+`
-      <div class="emoji">🏆</div>
-      <h2>Neuer Spieler</h2>
-      <p>Erstelle deinen Account für die Liga</p>
-      <label>Dein Name</label>
-      <input type="text" id="name-input" placeholder="z.B. Thomas" style="margin-bottom:8px">
-      <label>PIN wählen (4 Ziffern)</label>
-      <input type="password" id="pin-input" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:8px">
-      <label>PIN bestätigen</label>
-      <input type="password" id="pin-confirm" placeholder="••••" maxlength="4" inputmode="numeric" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')registerPlayer()">
-      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="registerPlayer()">Registrieren →</button>
-      <p style="font-size:12px;color:var(--muted);margin-top:12px;cursor:pointer" onclick="renderNameEntry('login')">Schon registriert? Einloggen</p>
-    `;
-  }
-}
-
-async function registerPlayer(){
-  const name=(document.getElementById('name-input')||{}).value?.trim()||'';
-  const pin=(document.getElementById('pin-input')||{}).value?.trim()||'';
-  const pinConfirm=(document.getElementById('pin-confirm')||{}).value?.trim()||'';
-  if(!name){toast('Bitte Namen eingeben!');return;}
-  if(pin.length!==4||!/^\d{4}$/.test(pin)){toast('PIN muss 4 Ziffern sein!');return;}
-  if(pin!==pinConfirm){toast('PINs stimmen nicht überein!');return;}
-  if(state.players&&state.players[name]){
-    toast('Name bereits vergeben! Bitte einloggen.');
-    renderNameEntry('login');
-    return;
-  }
-  if(!state.players)state.players={};
-  state.players[name]={pin,joinedAt:new Date().toISOString(),deviceId:getDeviceId()};
-  if(!state.managers.includes(name)){
-    state.managers.push(name);
-    if(!state.squads[name])state.squads[name]=[];
-  }
-  await saveToDB();
-  myName=name;
-  localStorage.setItem('fwm_myname',myName);
-  localStorage.setItem('fwm_pin',pin);
-  completeLogin();
-  toast('Willkommen, '+name+'! 🎉');
-  const isFirstLogin=!localStorage.getItem('fwm_onboarded');
-  if(isFirstLogin)setTimeout(showOnboarding,800);
-}
-
-async function loginPlayer(){
-  const name=(document.getElementById('login-name-input')||{}).value?.trim()||'';
-  const pin=(document.getElementById('login-pin-input')||{}).value?.trim()||'';
-  if(!name||!pin){toast('Bitte alle Felder ausfüllen!');return;}
-  if(!state.players||!state.players[name]){
-    toast('Name nicht gefunden. Bitte registrieren.');
-    renderNameEntry('register');
-    return;
-  }
-  if(state.players[name].pin!==pin){
-    toast('Falscher PIN! ❌');
-    const pinEl=document.getElementById('login-pin-input');
-    if(pinEl)pinEl.value='';
-    return;
-  }
-  myName=name;
-  localStorage.setItem('fwm_myname',myName);
-  localStorage.setItem('fwm_pin',pin);
-  completeLogin();
-  toast('Willkommen zurück, '+name+'! 👋');
 }
 
 function completeLogin(){
@@ -6614,6 +6576,7 @@ function openAdmin(){showAdminPanel();}
 async function init(){
   const urlParams=new URLSearchParams(window.location.search);
   if(urlParams.get('reset')==='1'){
+    await db.auth.signOut();
     localStorage.removeItem('fwm_myname');localStorage.removeItem('fwm_pin');
     localStorage.removeItem('fwm_device_id');localStorage.removeItem('fwm_last_liga');
   }
@@ -6628,7 +6591,7 @@ async function init(){
     document.getElementById('loading-overlay').style.display='none';
     if(!myName){
       document.getElementById('name-entry').style.display='flex';
-      renderNameEntry(state.managers?.length>0?'login':'register');
+      showRegisterForm();
     } else {
       document.getElementById('app').style.display='flex';
       document.getElementById('app').style.flexDirection='column';
@@ -6641,17 +6604,16 @@ async function init(){
   }
 
   document.getElementById('loading-overlay').style.display='none';
-  const savedName=localStorage.getItem('fwm_myname');
-  const savedPin=localStorage.getItem('fwm_pin');
   const ligaCodeFromUrl=urlParams.get('liga');
   if(ligaCodeFromUrl)_pendingInviteCode=ligaCodeFromUrl.toUpperCase();
 
-  if(savedName&&savedPin){
-    // Returning user — trust localStorage credentials, no legacy PIN check needed
-    myName=savedName;
+  const{data:{session}}=await db.auth.getSession();
+  if(session){
+    const name=session.user?.user_metadata?.display_name||session.user?.email?.split('@')[0];
+    myName=name;
+    localStorage.setItem('fwm_myname',name);
     checkAdminAccess();
     if(_pendingInviteCode){
-      // Invite link — show liga-select, show banner, auto-join
       const code=_pendingInviteCode;
       _pendingInviteCode=null;
       document.getElementById('liga-select').style.display='block';
@@ -6670,16 +6632,17 @@ async function init(){
         renderLigaSelect();
       }
     }
-  } else if(savedName){
-    // Has name but no PIN — show login to re-enter PIN
-    document.getElementById('name-entry').style.display='flex';
-    renderNameEntry('login');
-    setTimeout(()=>{const n=document.getElementById('name-input');if(n)n.value=savedName;},100);
   } else {
-    const legacyData=await loadLegacyState();
-    state=legacyData||getDefaultState();
     document.getElementById('name-entry').style.display='flex';
-    renderNameEntry(state.managers?.length>0?'login':'register');
+    if(_pendingInviteCode){
+      const banner=document.getElementById('auth-invite-banner');
+      if(banner){
+        banner.style.display='block';
+        const codeEl=document.getElementById('auth-invite-code');
+        if(codeEl)codeEl.textContent='Liga-Code: '+_pendingInviteCode;
+      }
+    }
+    showRegisterForm();
   }
 }
 
